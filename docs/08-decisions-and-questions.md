@@ -8,6 +8,14 @@ Use this log for choices that affect product direction, design, engineering, or 
 - Build for a hosted web app with backend processing; do not assume the local desktop architecture of Pond or DigUp transfers unchanged.
 - Open: first audience and specific first-release promise; source integrations and permissions; hosting and inference costs; how proactive connections earn trust. See [reference research](09-reference-research.md).
 
+## Answers from Nico — 2026-11-10
+
+- **First audience:** designers (still a hypothesis to test with real people).
+- **Core promise:** Find, Connect and Use together. Self-reflection/taste analytics is out of the first release.
+- **Capture:** paste a URL, upload images/files, and a browser extension based on Pond's. Source sync from social saves is not requested.
+- **Stack:** Next.js + Postgres (pgvector for search).
+- **To check:** Pond's extension talks to a local desktop host through native messaging, so it needs a hosted API in its place. Confirm Pond's license permits reuse before copying code. The scope is larger than the experiment proposed in [04](04-product-and-features.md).
+
 ## Open questions
 
 | Question | Why it matters | How to answer it | Owner | Status |
