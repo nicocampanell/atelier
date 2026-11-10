@@ -79,3 +79,20 @@ export async function readAsset(userId: string, assetId: string): Promise<AssetF
     return null;
   }
 }
+
+/** Pixel size from PNG / GIF / JPEG headers, or null (also for WebP and anything unknown). */
+export function imageSize(b: Uint8Array): { w: number; h: number } | null {
+  const dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  if (b.length >= 24 && startsWith(b, [0x89, 0x50, 0x4e, 0x47])) return { w: dv.getUint32(16), h: dv.getUint32(20) };
+  if (b.length >= 10 && startsWith(b, [0x47, 0x49, 0x46])) return { w: dv.getUint16(6, true), h: dv.getUint16(8, true) };
+  if (b.length > 4 && b[0] === 0xff && b[1] === 0xd8) {
+    let i = 2;
+    while (i + 9 < b.length) {
+      if (b[i] !== 0xff) { i++; continue; }
+      const m = b[i + 1];
+      if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) return { h: dv.getUint16(i + 5), w: dv.getUint16(i + 7) };
+      i += 2 + dv.getUint16(i + 2);
+    }
+  }
+  return null;
+}

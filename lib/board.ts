@@ -76,19 +76,38 @@ function toItem(r: ItemRow): BoardItem {
   return { id: r.id, type: r.type as BoardItem["type"], saveId: r.save_id, text: r.text, x: r.x, y: r.y, w: r.w, h: r.h, z: r.z };
 }
 
-async function ensureBoard(userId: string): Promise<{ id: string; camera: Board["camera"] }> {
+interface BoardRow {
+  id: string;
+  camera: Board["camera"];
+}
+
+/** The oldest board is the default project; created on first use. */
+async function ensureDefaultBoard(userId: string): Promise<BoardRow> {
   const db = await getDb();
   await db.query(
-    `insert into board (id, user_id, camera) values ($1, $2, $3::jsonb) on conflict (user_id) do nothing`,
+    `insert into board (id, user_id, camera)
+     select $1, $2, $3::jsonb where not exists (select 1 from board where user_id = $2)`,
     [randomUUID(), userId, JSON.stringify(DEFAULT_CAMERA)],
   );
-  const r = await db.query<{ id: string; camera: Board["camera"] }>(`select id, camera from board where user_id = $1`, [userId]);
+  const r = await db.query<BoardRow>(
+    `select id, camera from board where user_id = $1 order by created_at, id limit 1`,
+    [userId],
+  );
   return r.rows[0];
 }
 
-export async function getBoard(userId: string): Promise<Board> {
+/** Resolve a project's board for this user: the default when projectId is undefined, else 404. */
+export async function resolveBoard(userId: string, projectId?: string): Promise<BoardRow> {
+  if (projectId === undefined) return ensureDefaultBoard(userId);
   const db = await getDb();
-  const board = await ensureBoard(userId);
+  const r = await db.query<BoardRow>(`select id, camera from board where user_id = $1 and id = $2`, [userId, projectId]);
+  if (!r.rows[0]) throw new ApiError(404, "project_not_found", "That project doesn't exist.");
+  return r.rows[0];
+}
+
+export async function getBoard(userId: string, projectId?: string): Promise<Board> {
+  const db = await getDb();
+  const board = await resolveBoard(userId, projectId);
   // Save items pointing at deleted or missing saves are dropped.
   const r = await db.query<ItemRow>(
     `select bi.id, bi.type, bi.save_id, bi.text, bi.x, bi.y, bi.w, bi.h, bi.z
@@ -102,10 +121,10 @@ export async function getBoard(userId: string): Promise<Board> {
   return { id: board.id, camera: board.camera, items: r.rows.map(toItem) };
 }
 
-export async function putBoard(userId: string, body: unknown): Promise<Board> {
+export async function putBoard(userId: string, body: unknown, projectId?: string): Promise<Board> {
   const { camera, items } = parseBoard(body);
   const db = await getDb();
-  const board = await ensureBoard(userId);
+  const board = await resolveBoard(userId, projectId);
 
   const saveIds = items.filter((i) => i.type === "save").map((i) => i.saveId as string);
   const live = new Set<string>();
@@ -119,7 +138,7 @@ export async function putBoard(userId: string, body: unknown): Promise<Board> {
   const kept = items.filter((i) => i.type === "note" || live.has(i.saveId as string));
 
   await db.transaction(async (tx) => {
-    await tx.query(`update board set camera = $2::jsonb where user_id = $1`, [userId, JSON.stringify(camera)]);
+    await tx.query(`update board set camera = $3::jsonb, updated_at = now() where user_id = $1 and id = $2`, [userId, board.id, JSON.stringify(camera)]);
     await tx.query(`delete from board_item where user_id = $1 and board_id = $2`, [userId, board.id]);
     let pos = 0;
     for (const it of kept) {
@@ -130,5 +149,5 @@ export async function putBoard(userId: string, body: unknown): Promise<Board> {
       );
     }
   });
-  return getBoard(userId);
+  return getBoard(userId, board.id);
 }

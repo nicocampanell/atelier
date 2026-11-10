@@ -60,7 +60,7 @@ create index if not exists segment_user_save_idx on segment (user_id, save_id);
 
 create table if not exists board (
   id text primary key,
-  user_id text not null unique,
+  user_id text not null,
   camera jsonb not null
 );
 
@@ -83,6 +83,16 @@ create table if not exists board_item (
 create index if not exists board_item_board_idx on board_item (user_id, board_id, pos);
 create index if not exists board_item_save_idx on board_item (user_id, save_id);
 
+create table if not exists idempotency (
+  user_id text not null,
+  key text not null,
+  save_id text not null,
+  project_id text,
+  item_id text,
+  created_at timestamptz not null default now(),
+  primary key (user_id, key)
+);
+
 create table if not exists job (
   id text primary key,
   user_id text not null,
@@ -95,12 +105,30 @@ create table if not exists job (
 );
 `;
 
+// Idempotent migration: boards became projects. Older data dirs have
+// board.user_id UNIQUE and no name/created_at/updated_at.
+const MIGRATE = `
+alter table board drop constraint if exists board_user_id_key;
+alter table board add column if not exists name text not null default 'Moodboard';
+alter table board add column if not exists created_at timestamptz not null default now();
+alter table board add column if not exists updated_at timestamptz not null default now();
+create index if not exists board_user_created_idx on board (user_id, created_at, id);
+-- Item ids only need to be unique within a board (two projects may reuse ids).
+alter table board_item drop constraint if exists board_item_pkey;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'board_item_pk2') then
+    alter table board_item add constraint board_item_pk2 primary key (user_id, board_id, id);
+  end if;
+end $$;
+`;
+
 async function open(): Promise<PGlite> {
   const dir = path.join(getDataDir(), "db");
   await mkdir(dir, { recursive: true });
   const db = new PGlite(dir);
   await db.waitReady;
   await db.exec(SCHEMA);
+  await db.exec(MIGRATE);
   // Re-queue saves a previous process left in accepted/processing. Fire and
   // forget; it must not block (or deadlock on) database initialisation.
   setTimeout(() => {

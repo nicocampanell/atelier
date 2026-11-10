@@ -6,7 +6,56 @@ import path from "node:path";
 import { getDataDir, getDb } from "./db";
 import { ApiError } from "./http";
 import { removeSaveIndex } from "./search/index";
-import type { Save, SaveKind, SaveStatus } from "./types";
+import { placeSaveInTx } from "./projects";
+import type { Save, SaveCreated, SaveKind, SaveStatus } from "./types";
+import type { Transaction } from "@electric-sql/pglite";
+
+/** Optional extras for creating a save: placement on a project's board and idempotency. */
+export interface CreateCtx {
+  projectId?: string | null;
+  idempotencyKey?: string | null;
+  /** Item size when placing; default 280x200. */
+  size?: { w: number; h: number };
+}
+
+const IDEMPOTENCY_TTL_HOURS = 24;
+
+/** Run inside the save-creating transaction: place + record the idempotency key. */
+async function afterInsert(tx: Transaction, userId: string, saveId: string, ctx: CreateCtx | undefined): Promise<SaveCreated["placedIn"]> {
+  let placedIn: SaveCreated["placedIn"] = null;
+  if (ctx?.projectId) {
+    placedIn = await placeSaveInTx(tx, userId, ctx.projectId, saveId, ctx.size ?? { w: 280, h: 200 });
+  }
+  if (ctx?.idempotencyKey) {
+    await tx.query(
+      `insert into idempotency (user_id, key, save_id, project_id, item_id) values ($1,$2,$3,$4,$5)`,
+      [userId, ctx.idempotencyKey, saveId, placedIn?.projectId ?? null, placedIn?.itemId ?? null],
+    );
+  }
+  return placedIn;
+}
+
+/** The original SaveCreated for a key used within the last 24h, or null (expired keys are dropped). */
+export async function findIdempotent(userId: string, key: string): Promise<SaveCreated | null> {
+  const db = await getDb();
+  await db.query(
+    `delete from idempotency where user_id = $1 and key = $2 and created_at < now() - ($3 || ' hours')::interval`,
+    [userId, key, String(IDEMPOTENCY_TTL_HOURS)],
+  );
+  const r = await db.query<{ save_id: string; project_id: string | null; item_id: string | null }>(
+    `select save_id, project_id, item_id from idempotency where user_id = $1 and key = $2`,
+    [userId, key],
+  );
+  const row = r.rows[0];
+  if (!row) return null;
+  const save = await getSave(userId, row.save_id);
+  if (!save) return null;
+  return { ...save, placedIn: row.project_id && row.item_id ? { projectId: row.project_id, itemId: row.item_id } : null };
+}
+
+function isUniqueViolation(e: unknown): boolean {
+  return typeof e === "object" && e !== null && (e as { code?: string }).code === "23505";
+}
 
 interface SaveRow {
   id: string;
@@ -54,6 +103,30 @@ export function normalizeUrl(u: URL): string {
 export function titleFromUrl(u: URL): string {
   const p = u.pathname.replace(/\/+$/, "");
   return (u.hostname + p).slice(0, 200);
+}
+
+/** Run the creating transaction; on a lost idempotency race, surface the winner via IdempotentReplay. */
+export class IdempotentReplay extends Error {
+  constructor(public result: SaveCreated) {
+    super("replay");
+  }
+}
+
+async function withCreate<T>(
+  db: Awaited<ReturnType<typeof getDb>>,
+  fn: (tx: Transaction) => Promise<T>,
+  userId: string,
+  ctx: CreateCtx | undefined,
+): Promise<T> {
+  try {
+    return await db.transaction(fn);
+  } catch (e) {
+    if (ctx?.idempotencyKey && isUniqueViolation(e)) {
+      const prior = await findIdempotent(userId, ctx.idempotencyKey);
+      if (prior) throw new IdempotentReplay(prior);
+    }
+    throw e;
+  }
 }
 
 export async function getSave(userId: string, id: string): Promise<Save | null> {
@@ -123,34 +196,41 @@ async function findDuplicate(userId: string, normalized: string): Promise<string
 export async function createUrlSave(
   userId: string,
   input: { url: URL; title?: string | null; note?: string | null },
-): Promise<Save> {
+  ctx?: CreateCtx,
+): Promise<SaveCreated> {
   const db = await getDb();
   const id = randomUUID();
   const normalized = normalizeUrl(input.url);
   const dup = await findDuplicate(userId, normalized);
   const userTitle = input.title?.trim() || null;
-  await db.query(
-    `insert into save (id, user_id, kind, source_url, normalized_url, title, title_user, status, duplicate_of, note, created_at)
-     values ($1,$2,'url',$3,$4,$5,$6,'accepted',$7,$8,$9::timestamptz)`,
-    [
-      id, userId, input.url.toString(), normalized, userTitle ?? titleFromUrl(input.url),
-      userTitle !== null, dup, input.note?.trim() || null, new Date().toISOString(),
-    ],
-  );
-  return (await getSave(userId, id))!;
+  const placedIn = await withCreate(db, async (tx) => {
+    await tx.query(
+      `insert into save (id, user_id, kind, source_url, normalized_url, title, title_user, status, duplicate_of, note, created_at)
+       values ($1,$2,'url',$3,$4,$5,$6,'accepted',$7,$8,$9::timestamptz)`,
+      [
+        id, userId, input.url.toString(), normalized, userTitle ?? titleFromUrl(input.url),
+        userTitle !== null, dup, input.note?.trim() || null, new Date().toISOString(),
+      ],
+    );
+    return afterInsert(tx, userId, id, ctx);
+  }, userId, ctx);
+  return { ...(await getSave(userId, id))!, placedIn };
 }
 
-export async function createNoteSave(userId: string, input: { note: string; title?: string | null }): Promise<Save> {
+export async function createNoteSave(userId: string, input: { note: string; title?: string | null }, ctx?: CreateCtx): Promise<SaveCreated> {
   const db = await getDb();
   const id = randomUUID();
   const firstLine = input.note.trim().split("\n")[0].slice(0, 120);
   const userTitle = input.title?.trim() || null;
-  await db.query(
-    `insert into save (id, user_id, kind, title, title_user, status, note, extracted_text, created_at)
-     values ($1,$2,'note',$3,$4,'accepted',$5,$5,$6::timestamptz)`,
-    [id, userId, userTitle ?? (firstLine || "Note"), userTitle !== null, input.note.trim(), new Date().toISOString()],
-  );
-  return (await getSave(userId, id))!;
+  const placedIn = await withCreate(db, async (tx) => {
+    await tx.query(
+      `insert into save (id, user_id, kind, title, title_user, status, note, extracted_text, created_at)
+       values ($1,$2,'note',$3,$4,'accepted',$5,$5,$6::timestamptz)`,
+      [id, userId, userTitle ?? (firstLine || "Note"), userTitle !== null, input.note.trim(), new Date().toISOString()],
+    );
+    return afterInsert(tx, userId, id, ctx);
+  }, userId, ctx);
+  return { ...(await getSave(userId, id))!, placedIn };
 }
 
 /** Insert an uploaded file: save + asset rows (bytes are already on disk). */
@@ -163,26 +243,29 @@ export async function createUploadSave(
     bytes: number;
     storagePath: string; // relative to the data dir
     extractedText: string | null;
+    sourceUrl?: string | null;
   },
-): Promise<Save> {
+  ctx?: CreateCtx,
+): Promise<SaveCreated> {
   const db = await getDb();
   const saveId = randomUUID();
   const assetId = randomUUID();
   const previewUrl = input.kind === "image" ? `/api/assets/${assetId}` : null;
   const now = new Date().toISOString();
-  await db.transaction(async (tx) => {
+  const placedIn = await withCreate(db, async (tx) => {
     await tx.query(
-      `insert into save (id, user_id, kind, title, title_user, preview_url, status, extracted_text, created_at)
-       values ($1,$2,$3,$4,true,$5,'accepted',$6,$7::timestamptz)`,
-      [saveId, userId, input.kind, input.title, previewUrl, input.extractedText, now],
+      `insert into save (id, user_id, kind, source_url, title, title_user, preview_url, status, extracted_text, created_at)
+       values ($1,$2,$3,$4,$5,true,$6,'accepted',$7,$8::timestamptz)`,
+      [saveId, userId, input.kind, input.sourceUrl ?? null, input.title, previewUrl, input.extractedText, now],
     );
     await tx.query(
       `insert into asset (id, user_id, save_id, media_type, bytes, storage_path, created_at)
        values ($1,$2,$3,$4,$5,$6,$7::timestamptz)`,
       [assetId, userId, saveId, input.mediaType, input.bytes, input.storagePath, now],
     );
-  });
-  return (await getSave(userId, saveId))!;
+    return afterInsert(tx, userId, saveId, ctx);
+  }, userId, ctx);
+  return { ...(await getSave(userId, saveId))!, placedIn };
 }
 
 /** Soft delete. Also removes board items, asset file + rows, and the search index. */

@@ -8,3 +8,8 @@ extension/.output
 extension/.wxt
 .data-test
 AGENTS.md
+.next-*
+.data-*
+extension/node_modules
+test-results
+extension/.output*

@@ -23,7 +23,33 @@ Start with the first three documents. Write rough answers, leave blanks when nee
 - Record consequential decisions in the decision log, including why they were made.
 - When direction changes, update the affected documents and preserve the decision history.
 
-There is no application code or development setup yet. Add setup and run instructions here once those exist.
+## Run it locally
+
+You need Node 22+ and pnpm.
+
+1. Install: `pnpm install` and `pnpm --dir extension install --ignore-workspace`.
+2. Copy `.env.example` to `.env.local` and set `ATELIER_TOKEN` to a long random string. This is your password for the API and the extension.
+3. Start the backend: `pnpm dev` (http://localhost:3000).
+4. Build the extension: `pnpm --dir extension build`.
+5. In Chrome, open `chrome://extensions`, turn on Developer mode, choose **Load unpacked** and pick `extension/.output/chrome-mv3`.
+6. Click the Atelier icon, enter the server URL (`http://localhost:3000`) and your token, then choose a project (or create one).
+
+### Saving
+
+- **Page:** click the toolbar icon, or press Alt+Shift+S.
+- **Image:** right-click an image, then choose **Save image to Atelier**.
+- **Screenshot of a region:** press Alt+Shift+R and drag.
+- **Site saves:** saving or bookmarking on Pinterest, Are.na, X or Instagram also saves the item to Atelier. You can turn each site off in the popup.
+
+A toast shows what really happened: **Sending**, then **Saved** (stored, still processing), then **Ready**. If a save fails, it shows the reason and, when a retry can help, a **Retry** button.
+
+### Checks
+
+- `pnpm exec tsx scripts/verify-backend.ts`: the original backend checks.
+- `pnpm exec tsx scripts/verify-projects.ts`: projects, placement and idempotency.
+- `pnpm exec tsx scripts/verify-extension.ts`: a real Chrome run of the extension against a real server.
+
+The goal and check lists are in [docs/goals/](docs/goals/).
 
 ## Reference research
 
