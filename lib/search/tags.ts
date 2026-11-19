@@ -2,6 +2,7 @@
 // picture. Tags make images findable by words ("cream magazine cover, huge red lettering")
 // when their titles are only file names.
 import { randomUUID } from "node:crypto";
+import { jevFormat } from "./image";
 
 /** [tag, yes/no question, extra words indexed for search]. */
 const VOCAB: [string, string, string][] = [
@@ -48,10 +49,11 @@ const BY_TAG = new Map(VOCAB.map(([tag, , words]) => [tag, words]));
 /** Jev's suggested "yes" threshold. ponytail: not tuned on a labelled set; revisit with real misses. */
 const YES = 0.7;
 
-/** Tags for an image (prepared by prepareJevImage), or null when Jev is unavailable or fails. */
-export async function visualTags(jpeg: Uint8Array): Promise<string[] | null> {
+/** Tags for an image within Jev limits, or null when format unsupported / Jev unavailable. */
+export async function visualTags(image: Uint8Array): Promise<string[] | null> {
   const key = process.env.TYPESAFE_API_KEY?.trim();
-  if (!key) return null;
+  const format = jevFormat(image);
+  if (!key || !format) return null;
   const ref = randomUUID();
   try {
     const res = await fetch("https://api.typesafe.ai/v1/systemone", {
@@ -60,7 +62,7 @@ export async function visualTags(jpeg: Uint8Array): Promise<string[] | null> {
       body: JSON.stringify({
         model: process.env.TYPESAFE_MODEL?.trim() || "jev-latest",
         state: { image: ref },
-        assets: { [ref]: { type: "image", format: "jpg", data_base64: Buffer.from(jpeg).toString("base64") } },
+        assets: { [ref]: { type: "image", format, data_base64: Buffer.from(image).toString("base64") } },
         questions: Object.fromEntries(VOCAB.map(([, q], i) => [`t${i}`, { type: "noul", instructions: `About the image: ${q}` }])),
       }),
       signal: AbortSignal.timeout(20_000),

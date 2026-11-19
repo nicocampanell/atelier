@@ -2,7 +2,7 @@
 // combined per save. All queries are scoped by user_id and skip deleted saves.
 import { randomUUID } from "node:crypto";
 import { scoreWithJev } from "./jev";
-import { loadSaveImage } from "./image";
+import { jevFormat, loadSaveImage } from "./image";
 import { tagSearchText } from "./tags";
 import { db, sbError } from "../db";
 import type { Save, SaveKind, SearchHit, SearchResponse, SaveStatus } from "../types";
@@ -311,7 +311,8 @@ export async function search(
         const text = [r.title, r.tags?.length ? `Visual tags: ${r.tags.join(", ")}` : null, r.description, r.body]
           .filter(Boolean)
           .join("\n");
-        return { text, image: bytes ? { bytes, format: "jpg" as const } : undefined };
+        const format = bytes ? jevFormat(bytes) : null;
+        return { text, image: bytes && format ? { bytes, format } : undefined };
       }),
     );
     const scores = await scoreWithJev(q, candidates);

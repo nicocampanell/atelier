@@ -1,5 +1,5 @@
-// Background processing for saves (in-process). Status flow:
-// accepted -> processing -> ready | failed. Every path ends in ready or failed.
+// Background processing for saves. Status flow: accepted -> processing -> ready | failed.
+// Hosted: schedule via waitUntil (vinext/CF). Local next: void the promise (or after()).
 import { db, sbError } from "./db";
 import { decodeBody, extractHtml, MAX_TEXT_CHARS } from "./extract";
 import { SafeFetchError, safeFetch } from "./fetch-safe";
@@ -10,48 +10,24 @@ import { titleFromUrl } from "./saves";
 import type { SaveKind } from "./types";
 
 const OVERALL_TIMEOUT_MS = 60_000;
-const MAX_CONCURRENT = 3;
 
-type G = typeof globalThis & {
-  __atelierJobs?: { inflight: Set<string>; queue: Array<() => Promise<void>>; active: number };
-};
-const g = globalThis as G;
-const state = (g.__atelierJobs ??= { inflight: new Set(), queue: [], active: 0 });
-
-function pump() {
-  while (state.active < MAX_CONCURRENT && state.queue.length) {
-    const job = state.queue.shift()!;
-    state.active++;
-    job().finally(() => {
-      state.active--;
-      pump();
-    });
-  }
-}
-
-function enqueue(key: string, run: () => Promise<void>): void {
-  if (state.inflight.has(key)) return;
-  state.inflight.add(key);
-  state.queue.push(async () => {
-    try {
-      await run();
-    } finally {
-      state.inflight.delete(key);
-    }
-  });
-  pump();
-}
-
-/** Queue background processing for a save. Safe to call twice for the same id. */
-export function enqueueProcessing(userId: string, saveId: string): void {
-  enqueue(`${userId}:${saveId}`, () => processSave(userId, saveId));
+/** Schedule save processing after the response. Safe to call twice for the same id. */
+export function scheduleProcessSave(
+  waitUntil: ((p: Promise<unknown>) => void) | undefined,
+  userId: string,
+  saveId: string,
+): void {
+  const p = processSave(userId, saveId).catch(() => {});
+  if (waitUntil) waitUntil(p);
+  else void p; // local next dev / cron / startup
 }
 
 /** Cap requeue scans so PostgREST's default ~1000-row page doesn't silently truncate. */
 const REQUEUE_LIMIT = 1000;
 
-/** On first DB use: pick up saves a previous process left half-done, then tag untagged ones. */
+/** Pick up saves left half-done, then tag untagged ready ones. */
 export async function requeueStuck(): Promise<void> {
+  // ponytail: no concurrency cap — waitUntil/cron fan-out. Cap if Workers hit subrequest limits.
   const { data: stuck, error } = await db()
     .from("save")
     .select("id, user_id")
@@ -60,7 +36,7 @@ export async function requeueStuck(): Promise<void> {
     .order("created_at", { ascending: true })
     .limit(REQUEUE_LIMIT);
   if (error) sbError(error);
-  for (const row of stuck ?? []) enqueueProcessing(row.user_id, row.id);
+  for (const row of stuck ?? []) scheduleProcessSave(undefined, row.user_id, row.id);
 
   if (!process.env.TYPESAFE_API_KEY?.trim()) return;
   const { data: untagged, error: uErr } = await db()
@@ -72,9 +48,7 @@ export async function requeueStuck(): Promise<void> {
     .order("created_at", { ascending: false })
     .limit(REQUEUE_LIMIT);
   if (uErr) sbError(uErr);
-  for (const row of untagged ?? []) {
-    enqueue(`${row.user_id}:${row.id}:tags`, () => retagSave(row.user_id, row.id).catch(() => {}));
-  }
+  for (const row of untagged ?? []) void retagSave(row.user_id, row.id).catch(() => {});
 }
 
 function readable(e: unknown): string {

@@ -1,25 +1,22 @@
 import assert from "node:assert/strict";
-import sharp from "sharp";
-import { prepareJevImage } from "../lib/search/image";
+import { JEV_MAX_BYTES, jevFormat, prepareJevImage } from "../lib/search/image";
 
 async function main() {
-  for (const [width, height] of [[10, 20], [3000, 100], [2800, 2200]]) {
-    const source = await sharp({ create: { width, height, channels: 3, background: "red" } }).png().toBuffer();
-    const output = await prepareJevImage(source);
-    assert.ok(output);
-    const meta = await sharp(output).metadata();
-    assert.equal(meta.format, "jpeg");
-    assert.ok(meta.width! >= 280 && meta.width! <= 1568);
-    assert.ok(meta.height! >= 280 && meta.height! <= 1568);
-    assert.ok(output.length <= 2 * 1024 * 1024);
-  }
-  for (const format of ["webp", "gif"] as const) {
-    const source = await sharp({ create: { width: 300, height: 300, channels: 3, background: "red" } })[format]().toBuffer();
-    const output = await prepareJevImage(source);
-    assert.ok(output, `${format} conversion failed`);
-    assert.equal((await sharp(output).metadata()).format, "jpeg");
-  }
-  assert.equal(await prepareJevImage(new Uint8Array([1, 2, 3])), null);
-  console.log("Jev image preparation: tiny, wide, large, WebP, GIF and malformed inputs passed");
+  // Minimal JPEG (SOI + EOI) and PNG signatures.
+  const jpeg = Uint8Array.of(0xff, 0xd8, 0xff, 0xd9);
+  const png = Uint8Array.of(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a);
+  assert.equal(jevFormat(jpeg), "jpg");
+  assert.equal(jevFormat(png), "png");
+  assert.equal(jevFormat(Uint8Array.of(1, 2, 3)), null);
+
+  assert.deepEqual(prepareJevImage(jpeg), jpeg);
+  assert.deepEqual(prepareJevImage(png), png);
+  assert.equal(prepareJevImage(new Uint8Array([1, 2, 3])), null);
+  assert.equal(prepareJevImage(new Uint8Array(JEV_MAX_BYTES + 1).fill(0xff)), null);
+
+  console.log("Jev image prep: pass-through within limits; skip oversize/unsupported");
 }
-main().catch((error) => { console.error(error); process.exitCode = 1; });
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

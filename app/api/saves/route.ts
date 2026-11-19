@@ -2,10 +2,11 @@ import { MAX_UPLOAD_BYTES, imageSize, sniffUpload, storeAssetBytes } from "@/lib
 import { requireUser } from "@/lib/auth";
 import { SafeFetchError, assertPublicHttpUrl } from "@/lib/fetch-safe";
 import { ApiError, fail, handle, ok } from "@/lib/http";
-import { enqueueProcessing } from "@/lib/jobs";
+import { scheduleProcessSave } from "@/lib/jobs";
 import { assertProject } from "@/lib/projects";
 import { IdempotentReplay, createNoteSave, createUploadSave, createUrlSave, findIdempotent, listSaves, type CreateCtx } from "@/lib/saves";
 import type { SaveCreated } from "@/lib/types";
+import { after } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -72,7 +73,8 @@ function checkPublicUrl(raw: string): URL {
 async function created(fn: () => Promise<SaveCreated>, userId: string): Promise<Response> {
   try {
     const save = await fn();
-    enqueueProcessing(userId, save.id);
+    // after() → Next waitUntil; vinext maps that to CF ctx.waitUntil (Task 6).
+    scheduleProcessSave((p) => after(() => p), userId, save.id);
     return ok(save, 202);
   } catch (e) {
     if (e instanceof IdempotentReplay) return ok(e.result, 200);
