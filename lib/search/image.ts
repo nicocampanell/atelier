@@ -1,7 +1,5 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import sharp from "sharp";
-import { getDataDir } from "../db";
+import { downloadAssetBytes } from "../assets";
 import { safeFetch } from "../fetch-safe";
 
 /** Prepare a local image for Jev's experimental image API. */
@@ -25,17 +23,20 @@ export async function prepareJevImage(bytes: Uint8Array): Promise<Uint8Array | n
 
 const LOCAL_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 
-/** A save's image ready for Jev: the uploaded file, else its public preview. Null when there is none or it can't be read. */
+/** A save's image ready for Jev: uploaded Storage object, else public preview. Null when none / unreadable. */
 export async function loadSaveImage(
+  userId: string,
   save: { storagePath: string | null; mediaType: string | null; bytes: number | null; previewUrl: string | null },
   previewTimeoutMs = 3000,
 ): Promise<Uint8Array | null> {
   if (save.storagePath) {
     if (!save.bytes || save.bytes > 25 * 1024 * 1024 || !LOCAL_TYPES.includes(save.mediaType ?? "")) return null;
-    const root = path.resolve(getDataDir(), "assets") + path.sep;
-    const file = path.resolve(getDataDir(), save.storagePath);
-    if (!file.startsWith(root)) return null;
-    try { return await prepareJevImage(await readFile(file)); } catch { return null; }
+    try {
+      const raw = await downloadAssetBytes(userId, save.storagePath);
+      return raw ? await prepareJevImage(raw) : null;
+    } catch {
+      return null;
+    }
   }
   if (!save.previewUrl || !/^https?:\/\//i.test(save.previewUrl)) return null;
   try {

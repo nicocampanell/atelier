@@ -302,7 +302,7 @@ export async function search(
     const limited = selected.slice(0, 24);
     const candidates = await Promise.all(
       limited.map(async (r) => {
-        const bytes = await loadSaveImage({
+        const bytes = await loadSaveImage(userId, {
           storagePath: r.storage_path,
           mediaType: r.media_type,
           bytes: r.bytes,

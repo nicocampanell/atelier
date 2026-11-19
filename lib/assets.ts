@@ -1,10 +1,10 @@
-// Upload sniffing, storage and lookup of asset bytes.
+// Upload sniffing, private Storage, and asset lookup.
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
-import { db, getDataDir, sbError } from "./db";
+import { db, sbError } from "./db";
+import { getServiceClient } from "./supabase";
 
 export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+const BUCKET = "atelier-assets";
 
 export interface Sniffed {
   kind: "image" | "file";
@@ -41,26 +41,52 @@ export function sniffUpload(b: Uint8Array): Sniffed | null {
   return { kind: "file", mediaType: "text/plain", text: text.replace(/^﻿/, "") };
 }
 
-function safeSegment(s: string): string {
-  return /^[A-Za-z0-9_-]{1,64}$/.test(s) ? s : Buffer.from(s).toString("hex").slice(0, 64);
+function ownedKey(userId: string, key: string): boolean {
+  return key.startsWith(`${userId}/`) && !key.includes("..");
 }
 
-/** Write bytes under assets/<user>/<random id>. Returns the path relative to the data dir. */
+/** Upload bytes to private bucket. Returns storage key `{userId}/{assetId}`. */
 export async function storeAssetBytes(userId: string, bytes: Uint8Array): Promise<string> {
-  const rel = path.join("assets", safeSegment(userId), randomUUID());
-  const full = path.join(getDataDir(), rel);
-  await mkdir(path.dirname(full), { recursive: true });
-  await writeFile(full, bytes, { flag: "wx", mode: 0o600 });
-  return rel;
+  const key = `${userId}/${randomUUID()}`;
+  const { error } = await getServiceClient().storage.from(BUCKET).upload(key, bytes, {
+    contentType: sniffUpload(bytes)?.mediaType ?? "application/octet-stream",
+    upsert: false,
+  });
+  if (error) throw error;
+  return key;
+}
+
+/** Signed preview URL, or null when the key is foreign / missing. */
+export async function signedAssetUrl(userId: string, key: string, expiresSec = 120): Promise<string | null> {
+  if (!ownedKey(userId, key)) return null;
+  const { data, error } = await getServiceClient().storage.from(BUCKET).createSignedUrl(key, expiresSec);
+  if (error) return null;
+  return data.signedUrl;
+}
+
+/** Download object bytes; null when foreign or missing. */
+export async function downloadAssetBytes(userId: string, key: string): Promise<Uint8Array | null> {
+  if (!ownedKey(userId, key)) return null;
+  const { data, error } = await getServiceClient().storage.from(BUCKET).download(key);
+  if (error || !data) return null;
+  return new Uint8Array(await data.arrayBuffer());
+}
+
+/** Remove Storage objects that belong to this user (best-effort). */
+export async function removeAssetObjects(userId: string, keys: string[]): Promise<void> {
+  const owned = keys.filter((k) => ownedKey(userId, k));
+  if (!owned.length) return;
+  await getServiceClient().storage.from(BUCKET).remove(owned);
 }
 
 export interface AssetFile {
   mediaType: string;
   bytes: Buffer;
+  storagePath: string;
 }
 
-/** Owner-filtered lookup; null when missing, foreign, or its save is deleted. */
-export async function readAsset(userId: string, assetId: string): Promise<AssetFile | null> {
+/** Resolve storage_path for an owned, non-deleted asset. */
+async function assetPath(userId: string, assetId: string): Promise<{ mediaType: string; storagePath: string } | null> {
   const { data: row, error } = await db()
     .from("asset")
     .select("media_type, storage_path, save_id")
@@ -68,7 +94,7 @@ export async function readAsset(userId: string, assetId: string): Promise<AssetF
     .eq("id", assetId)
     .maybeSingle();
   if (error) sbError(error);
-  if (!row) return null;
+  if (!row || !ownedKey(userId, row.storage_path)) return null;
 
   const { data: save, error: sErr } = await db()
     .from("save")
@@ -79,15 +105,23 @@ export async function readAsset(userId: string, assetId: string): Promise<AssetF
     .maybeSingle();
   if (sErr) sbError(sErr);
   if (!save) return null;
+  return { mediaType: row.media_type, storagePath: row.storage_path };
+}
 
-  const root = path.resolve(getDataDir(), "assets") + path.sep;
-  const full = path.resolve(getDataDir(), row.storage_path);
-  if (!full.startsWith(root)) return null;
-  try {
-    return { mediaType: row.media_type, bytes: await readFile(full) };
-  } catch {
-    return null;
-  }
+/** Owner-filtered lookup; null when missing, foreign, or its save is deleted. */
+export async function readAsset(userId: string, assetId: string): Promise<AssetFile | null> {
+  const meta = await assetPath(userId, assetId);
+  if (!meta) return null;
+  const bytes = await downloadAssetBytes(userId, meta.storagePath);
+  if (!bytes) return null;
+  return { mediaType: meta.mediaType, bytes: Buffer.from(bytes), storagePath: meta.storagePath };
+}
+
+/** Bearer-gated signed preview URL for an asset id. */
+export async function signedUrlForAsset(userId: string, assetId: string, expiresSec = 120): Promise<string | null> {
+  const meta = await assetPath(userId, assetId);
+  if (!meta) return null;
+  return signedAssetUrl(userId, meta.storagePath, expiresSec);
 }
 
 /** Pixel size from PNG / GIF / JPEG headers, or null (also for WebP and anything unknown). */

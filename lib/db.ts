@@ -1,14 +1,8 @@
-// Data directory (local asset bytes) + Supabase service client for all queries.
-import path from "node:path";
+// Supabase service client for all queries.
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import { getServiceClient } from "./supabase";
 
 type G = typeof globalThis & { __atelierJobsKicked?: boolean };
-
-/** Root of uploaded files on disk. Storage bucket rewrite is Task 4. */
-export function getDataDir(): string {
-  return path.resolve(process.env.ATELIER_DATA_DIR ?? "./.data");
-}
 
 /**
  * Service-role client for route-layer mutations.

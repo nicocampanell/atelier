@@ -213,6 +213,7 @@ async function tagsFor(userId: string, saveId: string, previewUrl: string | null
   if (!hasImage) return [];
   if (!process.env.TYPESAFE_API_KEY?.trim()) return null;
   const image = await loadSaveImage(
+    userId,
     { storagePath: asset?.storage_path ?? null, mediaType: asset?.media_type ?? null, bytes: asset?.bytes ?? null, previewUrl },
     10_000,
   );

@@ -1,9 +1,8 @@
 // Data access for saves. Every function takes userId first and every query
 // filters on user_id.
 import { randomUUID } from "node:crypto";
-import { unlink } from "node:fs/promises";
-import path from "node:path";
-import { db, getDataDir, isUniqueViolation, sbError } from "./db";
+import { removeAssetObjects } from "./assets";
+import { db, isUniqueViolation, sbError } from "./db";
 import { ApiError } from "./http";
 import { removeSaveIndex } from "./search/index";
 import { placeSave } from "./projects";
@@ -296,7 +295,7 @@ export async function createNoteSave(
   });
 }
 
-/** Insert an uploaded file: save + asset rows (bytes are already on disk). */
+/** Insert an uploaded file: save + asset rows (bytes already in Storage). */
 export async function createUploadSave(
   userId: string,
   input: {
@@ -304,43 +303,49 @@ export async function createUploadSave(
     title: string;
     mediaType: string;
     bytes: number;
-    storagePath: string; // relative to the data dir
+    storagePath: string; // `{userId}/{assetId}` Storage key
     extractedText: string | null;
     sourceUrl?: string | null;
   },
   ctx?: CreateCtx,
 ): Promise<SaveCreated> {
   const now = new Date().toISOString();
-  return withCreate(userId, ctx, async (setId) => {
-    const saveId = randomUUID();
-    const assetId = randomUUID();
-    const previewUrl = input.kind === "image" ? `/api/assets/${assetId}` : null;
-    const { error } = await db().from("save").insert({
-      id: saveId,
-      user_id: userId,
-      kind: input.kind,
-      source_url: input.sourceUrl ?? null,
-      title: input.title,
-      title_user: true,
-      preview_url: previewUrl,
-      status: "accepted",
-      extracted_text: input.extractedText,
-      created_at: now,
+  try {
+    return await withCreate(userId, ctx, async (setId) => {
+      const saveId = randomUUID();
+      const assetId = randomUUID();
+      const previewUrl = input.kind === "image" ? `/api/assets/${assetId}` : null;
+      const { error } = await db().from("save").insert({
+        id: saveId,
+        user_id: userId,
+        kind: input.kind,
+        source_url: input.sourceUrl ?? null,
+        title: input.title,
+        title_user: true,
+        preview_url: previewUrl,
+        status: "accepted",
+        extracted_text: input.extractedText,
+        created_at: now,
+      });
+      if (error) sbError(error);
+      setId(saveId); // before asset insert — withCreate cleans up if asset fails
+      const { error: aErr } = await db().from("asset").insert({
+        id: assetId,
+        user_id: userId,
+        save_id: saveId,
+        media_type: input.mediaType,
+        bytes: input.bytes,
+        storage_path: input.storagePath,
+        created_at: now,
+      });
+      if (aErr) sbError(aErr);
+      return saveId;
     });
-    if (error) sbError(error);
-    setId(saveId); // before asset insert — withCreate cleans up if asset fails
-    const { error: aErr } = await db().from("asset").insert({
-      id: assetId,
-      user_id: userId,
-      save_id: saveId,
-      media_type: input.mediaType,
-      bytes: input.bytes,
-      storage_path: input.storagePath,
-      created_at: now,
-    });
-    if (aErr) sbError(aErr);
-    return saveId;
-  });
+  } catch (e) {
+    // Drop the pre-uploaded object when row insert / idempotent race fails.
+    await removeAssetObjects(userId, [input.storagePath]).catch(() => {});
+    throw e;
+  }
 }
 
 /** Soft delete. Also removes board items, asset file + rows, and the search index. */
@@ -369,11 +374,7 @@ export async function deleteSave(userId: string, id: string): Promise<boolean> {
   const { error: jErr } = await db().from("job").delete().eq("user_id", userId).eq("save_id", id);
   if (jErr) sbError(jErr);
 
-  const root = path.resolve(getDataDir(), "assets") + path.sep;
-  for (const rel of (paths ?? []).map((r) => r.storage_path)) {
-    const full = path.resolve(getDataDir(), rel);
-    if (full.startsWith(root)) await unlink(full).catch(() => {});
-  }
+  await removeAssetObjects(userId, (paths ?? []).map((r) => r.storage_path)).catch(() => {});
   try {
     await removeSaveIndex(userId, id);
   } catch {
