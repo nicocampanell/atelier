@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   return handle(async () => {
-    const userId = requireUser(req);
+    const userId = await requireUser(req);
     if (typeof userId !== "string") return userId;
     const { id } = await params;
     const r = await resetForRetry(userId, id);

@@ -9,7 +9,7 @@ type Ctx = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: Request, { params }: Ctx) {
   return handle(async () => {
-    const userId = requireUser(req);
+    const userId = await requireUser(req);
     if (typeof userId !== "string") return userId;
     const { id } = await params;
     let body: unknown;
@@ -25,7 +25,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
 export async function DELETE(req: Request, { params }: Ctx) {
   return handle(async () => {
-    const userId = requireUser(req);
+    const userId = await requireUser(req);
     if (typeof userId !== "string") return userId;
     const { id } = await params;
     return ok(await deleteProject(userId, id));

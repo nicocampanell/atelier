@@ -1,36 +1,25 @@
-import { createHash, timingSafeEqual } from "node:crypto";
 import { fail } from "./http";
+import { bearerFrom, getServiceClient } from "./supabase";
 
-/** Single-owner v1: a valid token maps to this user id. */
-export const OWNER_USER_ID = "owner";
+type GetUser = (jwt: string) => Promise<{ data: { user: { id?: string; email?: string } | null }; error: unknown }>;
 
-function sha(s: string): Buffer {
-  return createHash("sha256").update(s).digest();
-}
+// Injectable so scripts/verify-auth-supabase.ts runs without a live Supabase.
+const supabaseGetUser: GetUser = (jwt) => getServiceClient().auth.getUser(jwt);
 
-function tokenMatches(provided: string | null | undefined): boolean {
-  const expected = process.env.ATELIER_TOKEN; // read per request
-  if (!expected || !provided) return false; // never accept an empty token
-  return timingSafeEqual(sha(provided), sha(expected));
-}
-
-/** Returns the user id for an authenticated request, or null. */
-export function authenticate(req: Request, opts: { allowQueryToken?: boolean } = {}): string | null {
-  const header = req.headers.get("authorization");
-  let token: string | null = null;
-  if (header) {
-    const m = /^Bearer\s+(.+)$/i.exec(header.trim());
-    if (m) token = m[1].trim();
-  }
-  if (!token && opts.allowQueryToken) {
-    token = new URL(req.url).searchParams.get("token");
-  }
-  return tokenMatches(token) ? OWNER_USER_ID : null;
+/** Returns the Supabase auth user uuid for the owner's JWT, or null. */
+export async function authenticate(req: Request, getUser: GetUser = supabaseGetUser): Promise<string | null> {
+  const jwt = bearerFrom(req);
+  if (!jwt) return null;
+  const { data, error } = await getUser(jwt);
+  if (error || !data.user?.id || !data.user.email) return null;
+  const owner = process.env.ATELIER_OWNER_EMAIL?.trim().toLowerCase();
+  if (!owner || data.user.email.toLowerCase() !== owner) return null;
+  return data.user.id;
 }
 
 /** Returns the user id, or a ready-to-return 401 Response. */
-export function requireUser(req: Request, opts: { allowQueryToken?: boolean } = {}): string | Response {
-  const userId = authenticate(req, opts);
+export async function requireUser(req: Request): Promise<string | Response> {
+  const userId = await authenticate(req);
   if (userId) return userId;
   return fail(401, "unauthorized", "Missing or invalid access token.", { "WWW-Authenticate": "Bearer" });
 }

@@ -95,7 +95,7 @@ export type ApiResult<T> =
   | { ok: false; error: { code: string; message: string } };
 
 /*
- * HTTP API (all routes require "Authorization: Bearer <ATELIER_TOKEN>"
+ * HTTP API (all routes require "Authorization: Bearer <Supabase access token>"
  * except GET /api/health):
  *
  * GET    /api/health                      -> ApiResult<{ semantic: boolean }>
@@ -120,7 +120,7 @@ export type ApiResult<T> =
  * GET    /api/saves/:id                   -> ApiResult<Save>
  * DELETE /api/saves/:id                   -> ApiResult<{ id: string }>
  * POST   /api/saves/:id/retry             -> ApiResult<Save>
- * GET    /api/assets/:id                  -> raw file (authenticated; also accepts ?token= for <img> tags)
+ * GET    /api/assets/:id                  -> raw file (authenticated via Authorization header only)
  * GET    /api/search?q=&kinds=            -> ApiResult<SearchResponse>
  * GET    /api/board                       -> ApiResult<Board>   (the default project's board; kept for compatibility)
  * PUT    /api/board   Board               -> ApiResult<Board>

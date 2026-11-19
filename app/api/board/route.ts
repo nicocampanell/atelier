@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   return handle(async () => {
-    const userId = requireUser(req);
+    const userId = await requireUser(req);
     if (typeof userId !== "string") return userId;
     return ok(await getBoard(userId));
   });
@@ -15,7 +15,7 @@ export async function GET(req: Request) {
 
 export async function PUT(req: Request) {
   return handle(async () => {
-    const userId = requireUser(req);
+    const userId = await requireUser(req);
     if (typeof userId !== "string") return userId;
     const text = await req.text();
     if (text.length > 8 * 1024 * 1024) throw new ApiError(413, "too_large", "That board is too large.");

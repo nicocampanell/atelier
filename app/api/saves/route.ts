@@ -15,7 +15,7 @@ const BODY_SLACK = 1024 * 1024;
 
 export async function GET(req: Request) {
   return handle(async () => {
-    const userId = requireUser(req);
+    const userId = await requireUser(req);
     if (typeof userId !== "string") return userId;
     const sp = new URL(req.url).searchParams;
     let limit = 50;
@@ -180,7 +180,7 @@ async function handleJson(req: Request, userId: string, key: string | null): Pro
 
 export async function POST(req: Request) {
   return handle(async () => {
-    const userId = requireUser(req);
+    const userId = await requireUser(req);
     if (typeof userId !== "string") return userId;
     const rawKey = req.headers.get("idempotency-key")?.trim() || null;
     if (rawKey && rawKey.length > 200) throw new ApiError(400, "bad_request", "Idempotency-Key must be at most 200 characters.");

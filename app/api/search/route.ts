@@ -11,7 +11,7 @@ const MAX_Q = 500;
 
 export async function GET(req: Request) {
   return handle(async () => {
-    const userId = requireUser(req);
+    const userId = await requireUser(req);
     if (typeof userId !== "string") return userId;
     const sp = new URL(req.url).searchParams;
     const q = (sp.get("q") ?? "").trim();
