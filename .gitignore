@@ -2,6 +2,9 @@ node_modules
 .next
 .data
 .env.local
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
 next-env.d.ts
 *.tsbuildinfo
 extension/.output
@@ -13,3 +16,6 @@ AGENTS.md
 extension/node_modules
 test-results
 extension/.output*
+/dist/
+.vinext/
+.cloudflare/
