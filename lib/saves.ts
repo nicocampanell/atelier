@@ -103,7 +103,8 @@ async function assetsFor(userId: string, saveIds: string[]): Promise<Map<string,
     .from("asset")
     .select("save_id, media_type, bytes")
     .eq("user_id", userId)
-    .in("save_id", saveIds);
+    .in("save_id", saveIds)
+    .limit(saveIds.length);
   if (error) sbError(error);
   for (const a of data ?? []) map.set(a.save_id, { media_type: a.media_type, bytes: a.bytes });
   return map;
@@ -131,11 +132,12 @@ export class IdempotentReplay extends Error {
  * Create a save then place / record idempotency.
  * ponytail: no multi-statement tx via supabase-js — assert project first, and on
  * post-insert failure delete the orphan save (single-user; upgrade = RPC wrapper).
+ * Call setId as soon as the save row exists so cleanup runs if a later insert throws.
  */
 async function withCreate(
   userId: string,
   ctx: CreateCtx | undefined,
-  insert: () => Promise<string>,
+  insert: (setId: (id: string) => void) => Promise<string>,
 ): Promise<SaveCreated> {
   if (ctx?.projectId) {
     const { assertProject } = await import("./projects");
@@ -143,7 +145,9 @@ async function withCreate(
   }
   let saveId: string | undefined;
   try {
-    saveId = await insert();
+    saveId = await insert((id) => {
+      saveId = id;
+    });
     const placedIn = await afterInsert(userId, saveId, ctx);
     return { ...(await getSave(userId, saveId))!, placedIn };
   } catch (e) {
@@ -244,7 +248,7 @@ export async function createUrlSave(
   const normalized = normalizeUrl(input.url);
   const dup = await findDuplicate(userId, normalized);
   const userTitle = input.title?.trim() || null;
-  return withCreate(userId, ctx, async () => {
+  return withCreate(userId, ctx, async (setId) => {
     const id = randomUUID();
     const { error } = await db().from("save").insert({
       id,
@@ -260,6 +264,7 @@ export async function createUrlSave(
       created_at: new Date().toISOString(),
     });
     if (error) sbError(error);
+    setId(id);
     return id;
   });
 }
@@ -272,7 +277,7 @@ export async function createNoteSave(
   const firstLine = input.note.trim().split("\n")[0].slice(0, 120);
   const userTitle = input.title?.trim() || null;
   const note = input.note.trim();
-  return withCreate(userId, ctx, async () => {
+  return withCreate(userId, ctx, async (setId) => {
     const id = randomUUID();
     const { error } = await db().from("save").insert({
       id,
@@ -286,6 +291,7 @@ export async function createNoteSave(
       created_at: new Date().toISOString(),
     });
     if (error) sbError(error);
+    setId(id);
     return id;
   });
 }
@@ -305,7 +311,7 @@ export async function createUploadSave(
   ctx?: CreateCtx,
 ): Promise<SaveCreated> {
   const now = new Date().toISOString();
-  return withCreate(userId, ctx, async () => {
+  return withCreate(userId, ctx, async (setId) => {
     const saveId = randomUUID();
     const assetId = randomUUID();
     const previewUrl = input.kind === "image" ? `/api/assets/${assetId}` : null;
@@ -322,6 +328,7 @@ export async function createUploadSave(
       created_at: now,
     });
     if (error) sbError(error);
+    setId(saveId); // before asset insert — withCreate cleans up if asset fails
     const { error: aErr } = await db().from("asset").insert({
       id: assetId,
       user_id: userId,
@@ -355,9 +362,12 @@ export async function deleteSave(userId: string, id: string): Promise<boolean> {
   if (error) sbError(error);
   if (!updated?.length) return false;
 
-  await db().from("board_item").delete().eq("user_id", userId).eq("save_id", id);
-  await db().from("asset").delete().eq("user_id", userId).eq("save_id", id);
-  await db().from("job").delete().eq("user_id", userId).eq("save_id", id);
+  const { error: biErr } = await db().from("board_item").delete().eq("user_id", userId).eq("save_id", id);
+  if (biErr) sbError(biErr);
+  const { error: aErr } = await db().from("asset").delete().eq("user_id", userId).eq("save_id", id);
+  if (aErr) sbError(aErr);
+  const { error: jErr } = await db().from("job").delete().eq("user_id", userId).eq("save_id", id);
+  if (jErr) sbError(jErr);
 
   const root = path.resolve(getDataDir(), "assets") + path.sep;
   for (const rel of (paths ?? []).map((r) => r.storage_path)) {

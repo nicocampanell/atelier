@@ -1,7 +1,7 @@
 // Projects are named boards. Every query filters on user_id.
 import { randomUUID } from "node:crypto";
 import { db, sbError } from "./db";
-import { resolveBoard } from "./board";
+import { MAX_BOARD_ITEMS, resolveBoard } from "./board";
 import { ApiError } from "./http";
 import type { Project } from "./types";
 
@@ -37,7 +37,8 @@ async function enrich(userId: string, boards: BoardMeta[]): Promise<Project[]> {
     .from("board_item")
     .select("board_id, type, save_id, pos")
     .eq("user_id", userId)
-    .in("board_id", ids);
+    .in("board_id", ids)
+    .limit(ids.length * MAX_BOARD_ITEMS);
   if (error) sbError(error);
 
   const saveIds = [...new Set((items ?? []).filter((i) => i.type === "save" && i.save_id).map((i) => i.save_id as string))];
@@ -47,7 +48,8 @@ async function enrich(userId: string, boards: BoardMeta[]): Promise<Project[]> {
       .from("save")
       .select("id, deleted_at, preview_url")
       .eq("user_id", userId)
-      .in("id", saveIds);
+      .in("id", saveIds)
+      .limit(saveIds.length);
     if (sErr) sbError(sErr);
     for (const s of saves ?? []) live.set(s.id, s);
   }
@@ -102,7 +104,8 @@ export async function listProjects(userId: string): Promise<Project[]> {
     .select("id, name, created_at, updated_at")
     .eq("user_id", userId)
     .order("updated_at", { ascending: false })
-    .order("id", { ascending: true });
+    .order("id", { ascending: true })
+    .limit(500);
   if (error) sbError(error);
   return enrich(userId, data ?? []);
 }
@@ -175,7 +178,8 @@ export async function placeSave(
     .from("board_item")
     .select("type, save_id, x, y, w, h, z, pos")
     .eq("user_id", userId)
-    .eq("board_id", projectId);
+    .eq("board_id", projectId)
+    .limit(MAX_BOARD_ITEMS);
   if (iErr) sbError(iErr);
 
   const saveIds = [...new Set((items ?? []).filter((i) => i.type === "save" && i.save_id).map((i) => i.save_id as string))];
@@ -186,7 +190,8 @@ export async function placeSave(
       .select("id")
       .eq("user_id", userId)
       .is("deleted_at", null)
-      .in("id", saveIds);
+      .in("id", saveIds)
+      .limit(saveIds.length);
     if (sErr) sbError(sErr);
     for (const s of saves ?? []) live.add(s.id);
   }

@@ -135,7 +135,8 @@ export async function getBoard(userId: string, projectId?: string): Promise<Boar
     .select("id, type, save_id, text, x, y, w, h, z, pos")
     .eq("user_id", userId)
     .eq("board_id", board.id)
-    .order("pos", { ascending: true });
+    .order("pos", { ascending: true })
+    .limit(MAX_BOARD_ITEMS);
   if (error) sbError(error);
 
   const saveIds = [...new Set((items ?? []).filter((i) => i.type === "save" && i.save_id).map((i) => i.save_id as string))];
@@ -146,7 +147,8 @@ export async function getBoard(userId: string, projectId?: string): Promise<Boar
       .select("id")
       .eq("user_id", userId)
       .is("deleted_at", null)
-      .in("id", saveIds);
+      .in("id", saveIds)
+      .limit(saveIds.length);
     if (sErr) sbError(sErr);
     for (const s of saves ?? []) live.add(s.id);
   }
@@ -167,7 +169,8 @@ export async function putBoard(userId: string, body: unknown, projectId?: string
       .select("id")
       .eq("user_id", userId)
       .is("deleted_at", null)
-      .in("id", saveIds);
+      .in("id", saveIds)
+      .limit(saveIds.length);
     if (error) sbError(error);
     for (const row of data ?? []) live.add(row.id);
   }

@@ -168,7 +168,8 @@ export async function search(
         .from("segment")
         .select("id, save_id, modality, loc_kind, loc_start, loc_end, text, embedding")
         .eq("user_id", userId)
-        .not("embedding", "is", null);
+        .not("embedding", "is", null)
+        .limit(KEYWORD_ROW_LIMIT);
       if (aErr) sbError(aErr);
 
       const saveIds = [...new Set((allSegs ?? []).map((s) => s.save_id))];
@@ -180,7 +181,8 @@ export async function search(
           .select("id, title, kind")
           .eq("user_id", userId)
           .is("deleted_at", null)
-          .in("id", saveIds);
+          .in("id", saveIds)
+          .limit(saveIds.length);
         if (kinds) sq2 = sq2.in("kind", kinds);
         const { data: saves, error: sErr } = await sq2;
         if (sErr) sbError(sErr);
@@ -232,7 +234,8 @@ export async function search(
         .select("id, save_id, modality, loc_kind, loc_start, loc_end, text")
         .eq("user_id", userId)
         .in("save_id", recentIds)
-        .order("loc_start", { ascending: true });
+        .order("loc_start", { ascending: true })
+        .limit(KEYWORD_ROW_LIMIT);
       if (sErr) sbError(sErr);
       for (const seg of segs ?? []) {
         if (!segBySave.has(seg.save_id)) {
@@ -243,7 +246,7 @@ export async function search(
     }
 
     const { data: assets, error: aErr } = recentIds.length
-      ? await db().from("asset").select("save_id, storage_path, media_type, bytes").eq("user_id", userId).in("save_id", recentIds)
+      ? await db().from("asset").select("save_id, storage_path, media_type, bytes").eq("user_id", userId).in("save_id", recentIds).limit(recentIds.length)
       : { data: [], error: null };
     if (aErr) sbError(aErr);
     const assetBySave = new Map((assets ?? []).map((a) => [a.save_id, a]));

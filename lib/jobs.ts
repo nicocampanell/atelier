@@ -47,6 +47,9 @@ export function enqueueProcessing(userId: string, saveId: string): void {
   enqueue(`${userId}:${saveId}`, () => processSave(userId, saveId));
 }
 
+/** Cap requeue scans so PostgREST's default ~1000-row page doesn't silently truncate. */
+const REQUEUE_LIMIT = 1000;
+
 /** On first DB use: pick up saves a previous process left half-done, then tag untagged ones. */
 export async function requeueStuck(): Promise<void> {
   const { data: stuck, error } = await db()
@@ -54,7 +57,8 @@ export async function requeueStuck(): Promise<void> {
     .select("id, user_id")
     .is("deleted_at", null)
     .in("status", ["accepted", "processing"])
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    .limit(REQUEUE_LIMIT);
   if (error) sbError(error);
   for (const row of stuck ?? []) enqueueProcessing(row.user_id, row.id);
 
@@ -65,7 +69,8 @@ export async function requeueStuck(): Promise<void> {
     .is("deleted_at", null)
     .eq("status", "ready")
     .is("tags", null)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(REQUEUE_LIMIT);
   if (uErr) sbError(uErr);
   for (const row of untagged ?? []) {
     enqueue(`${row.user_id}:${row.id}:tags`, () => retagSave(row.user_id, row.id).catch(() => {}));
