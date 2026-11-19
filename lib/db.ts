@@ -108,6 +108,8 @@ create table if not exists job (
 // Idempotent migration: boards became projects. Older data dirs have
 // board.user_id UNIQUE and no name/created_at/updated_at.
 const MIGRATE = `
+-- Visual tags; null means not tagged yet (backfilled on startup).
+alter table save add column if not exists tags text[];
 alter table board drop constraint if exists board_user_id_key;
 alter table board add column if not exists name text not null default 'Moodboard';
 alter table board add column if not exists created_at timestamptz not null default now();

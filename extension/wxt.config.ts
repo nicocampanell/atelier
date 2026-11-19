@@ -27,6 +27,8 @@ export default defineConfig({
       // Hook sites: same sites the hook content scripts already run on. Lets the background inject
       // the overlay toast when a site-hook capture arrives without a user gesture (no activeTab).
       "https://*.pinterest.com/*",
+      // Pinterest's image CDN sends no CORS headers; without this the pin's bytes can't be uploaded.
+      "https://i.pinimg.com/*",
       "https://are.na/*",
       "https://www.are.na/*",
       "https://x.com/*",

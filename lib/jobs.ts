@@ -4,6 +4,8 @@ import { getDb } from "./db";
 import { decodeBody, extractHtml, MAX_TEXT_CHARS } from "./extract";
 import { SafeFetchError, safeFetch } from "./fetch-safe";
 import { indexSave } from "./search/index";
+import { loadSaveImage } from "./search/image";
+import { visualTags } from "./search/tags";
 import { titleFromUrl } from "./saves";
 import type { SaveKind } from "./types";
 
@@ -27,14 +29,12 @@ function pump() {
   }
 }
 
-/** Queue background processing for a save. Safe to call twice for the same id. */
-export function enqueueProcessing(userId: string, saveId: string): void {
-  const key = `${userId}:${saveId}`;
+function enqueue(key: string, run: () => Promise<void>): void {
   if (state.inflight.has(key)) return;
   state.inflight.add(key);
   state.queue.push(async () => {
     try {
-      await processSave(userId, saveId);
+      await run();
     } finally {
       state.inflight.delete(key);
     }
@@ -42,13 +42,25 @@ export function enqueueProcessing(userId: string, saveId: string): void {
   pump();
 }
 
-/** On first DB open: pick up saves a previous process left half-done. */
+/** Queue background processing for a save. Safe to call twice for the same id. */
+export function enqueueProcessing(userId: string, saveId: string): void {
+  enqueue(`${userId}:${saveId}`, () => processSave(userId, saveId));
+}
+
+/** On first DB open: pick up saves a previous process left half-done, then tag untagged ones. */
 export async function requeueStuck(): Promise<void> {
   const db = await getDb();
   const r = await db.query<{ id: string; user_id: string }>(
     `select id, user_id from save where deleted_at is null and status in ('accepted','processing') order by created_at`,
   );
   for (const row of r.rows) enqueueProcessing(row.user_id, row.id);
+  if (!process.env.TYPESAFE_API_KEY?.trim()) return;
+  const untagged = await db.query<{ id: string; user_id: string }>(
+    `select id, user_id from save where deleted_at is null and status = 'ready' and tags is null order by created_at desc`,
+  );
+  for (const row of untagged.rows) {
+    enqueue(`${row.user_id}:${row.id}:tags`, () => retagSave(row.user_id, row.id).catch(() => {}));
+  }
 }
 
 function readable(e: unknown): string {
@@ -142,17 +154,58 @@ async function doProcess(userId: string, saveId: string): Promise<void> {
     );
   }
 
-  const indexText = row.note && row.kind === "url" ? `${row.note}\n${text}` : text;
-  await indexSave(userId, saveId, { title, description, text: indexText, sourceUrl: row.source_url, kind: row.kind });
+  const tags = await tagsFor(userId, saveId, previewUrl);
+  await indexSave(userId, saveId, { title, description, text: indexText(row, text), sourceUrl: row.source_url, kind: row.kind, tags });
 
   const done = await db.query(
-    `update save set status = 'ready', error = null
+    `update save set status = 'ready', error = null, tags = $3
      where user_id = $1 and id = $2 and deleted_at is null and status = 'processing' returning id`,
-    [userId, saveId],
+    [userId, saveId, tags],
   );
   if (done.rows.length === 0) {
     // Deleted while we were working: make sure nothing lingers in the index.
     const { removeSaveIndex } = await import("./search/index");
     await removeSaveIndex(userId, saveId).catch(() => {});
   }
+}
+
+function indexText(row: Pick<Row, "kind" | "note">, text: string): string {
+  return row.note && row.kind === "url" ? `${row.note}\n${text}` : text;
+}
+
+const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+
+/** Visual tags for a save: [] when it has no image, null when tagging failed (retried on next startup). */
+async function tagsFor(userId: string, saveId: string, previewUrl: string | null): Promise<string[] | null> {
+  const db = await getDb();
+  const asset = (await db.query<{ storage_path: string; media_type: string; bytes: number }>(
+    `select storage_path, media_type, bytes from asset where user_id = $1 and save_id = $2 limit 1`,
+    [userId, saveId],
+  )).rows[0];
+  const hasImage = asset ? IMAGE_TYPES.includes(asset.media_type) : Boolean(previewUrl && /^https?:\/\//i.test(previewUrl));
+  if (!hasImage) return [];
+  if (!process.env.TYPESAFE_API_KEY?.trim()) return null;
+  const image = await loadSaveImage(
+    { storagePath: asset?.storage_path ?? null, mediaType: asset?.media_type ?? null, bytes: asset?.bytes ?? null, previewUrl },
+    10_000,
+  );
+  return image ? visualTags(image) : null;
+}
+
+/** Tag a ready save that has no tags yet and re-index it with them. */
+async function retagSave(userId: string, saveId: string): Promise<void> {
+  const db = await getDb();
+  const row = (await db.query<Row>(
+    `select kind, source_url, title, title_user, description, preview_url, note, extracted_text
+     from save where user_id = $1 and id = $2 and deleted_at is null and status = 'ready' and tags is null`,
+    [userId, saveId],
+  )).rows[0];
+  if (!row) return;
+  const tags = await tagsFor(userId, saveId, row.preview_url);
+  if (!tags) return;
+  await indexSave(userId, saveId, {
+    title: row.title, description: row.description, text: indexText(row, row.extracted_text ?? ""),
+    sourceUrl: row.source_url, kind: row.kind, tags,
+  });
+  await db.query(`update save set tags = $3 where user_id = $1 and id = $2 and deleted_at is null`, [userId, saveId, tags]);
 }

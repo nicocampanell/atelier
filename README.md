@@ -55,3 +55,29 @@ The goal and check lists are in [docs/goals/](docs/goals/).
 
 - [Reference study and hosted implementation](docs/09-reference-research.md) — video observations, thread feedback, source-code findings, and a proposed backend architecture.
 - The current concept and design direction are recorded in the mission, product, design, and engineering worksheets. These are working hypotheses, not validated requirements.
+
+### Search by meaning with Jev
+
+Keyword search works without configuration. To enable the Jev demo, add
+`TYPESAFE_API_KEY=your-key` to `.env.local` and restart the server. Optionally set
+`TYPESAFE_MODEL` (default `jev-latest`). Each search sends its query and up to
+24 tenant-filtered saved text snippets to TypeSafe for relevance scoring; local
+PNG, JPEG, WebP and GIF uploads up to 25 MB are resized and padded to fit Jev’s image limits, then sent as JPEG when available. Images use TypeSafe's
+experimental image API. Requests run at most four at a time with a ten-second
+shared deadline; failed or unscored items retain keyword search. Jev is a bounded
+reranker: it considers keyword matches among the newest 200 indexed saves first,
+then fills remaining places with recent saves, so meaning search does not cover
+the entire library. Public web preview images are fetched safely when available (up to 5 MB); inaccessible previews fall back to text. Audio, video, PDFs, other image formats and larger images are not visually analyzed. Search results report
+semantic mode only when at least one candidate was scored successfully; health
+reports the most recent in-process scoring outcome and starts false after restart.
+The model and threshold have not been evaluated on this library.
+
+Run `pnpm exec tsx scripts/verify-jev.ts` for mocked provider, image, tenant,
+failure and timeout checks. This test sends no requests to TypeSafe.
+
+With a key, each image is also tagged once when it is saved: one Jev request asks a fixed
+list of yes/no questions (colors, format such as poster or magazine cover, big lettering,
+subject) and the tags plus synonyms are indexed, so a description like "cream magazine cover
+with huge red lettering" finds an image whose title is only a file name. Saves made before
+tagging existed are tagged in the background on server start. The vocabulary lives in
+`lib/search/tags.ts`; `scripts/verify-tags.ts` checks it without calling TypeSafe.

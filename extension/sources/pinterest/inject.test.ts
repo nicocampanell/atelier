@@ -55,6 +55,15 @@ describe("pinterest hook", () => {
     });
   });
 
+  it("upgrades a thumbnail-only response to the 736x image", async () => {
+    const thumbs = JSON.stringify({ resource_response: { data: { images: { "474x": { url: "https://i.pinimg.com/474x/61/be/a.jpg" } } } } });
+    const { events } = setup({ body: thumbs });
+    inject();
+    await window.fetch(SAVE_URL, { method: "POST", body: saveBody });
+    await settle();
+    expect(events[0]?.request).toMatchObject({ kind: "image", imageUrl: "https://i.pinimg.com/736x/61/be/a.jpg" });
+  });
+
   it("XHR: one event", async () => {
     const { events } = setup({ body: response });
     fakeXhr({ body: response });

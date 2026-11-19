@@ -20,7 +20,7 @@ function errEnv(code: string, message: string, status: number) {
 }
 const save = (over: Record<string, unknown> = {}) => ({
   id: "s1", kind: "url", sourceUrl: "https://example.com/", title: "Example", description: null, previewUrl: null,
-  asset: null, status: "accepted", error: null, duplicateOf: null, createdAt: "", placedIn: { projectId: "p1", itemId: "i1" }, ...over,
+  asset: null, status: "accepted", error: null, duplicateOf: null, tags: [], createdAt: "", placedIn: { projectId: "p1", itemId: "i1" }, ...over,
 });
 const projects = () => env({ projects: [{ id: "p1", name: "Moodboard", itemCount: 0, coverUrl: null, createdAt: "", updatedAt: "" }] });
 

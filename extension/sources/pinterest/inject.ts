@@ -18,7 +18,11 @@ function imageFromResponse(text: string | null): { imageUrl?: string; title?: st
     ["images", "474x", "url"],
     ["images", "236x", "url"],
   ]);
-  return { imageUrl, title: nonEmpty(at(data, "title")) ?? nonEmpty(at(data, "grid_title")) };
+  return {
+    // Save responses often list only grid thumbnails; every pin is also served at 736x.
+    imageUrl: imageUrl?.replace(/^(https:\/\/i\.pinimg\.com\/)(?:236x|474x|564x)\//, "$1736x/"),
+    title: nonEmpty(at(data, "title")) ?? nonEmpty(at(data, "grid_title")),
+  };
 }
 
 export function inject(): void {

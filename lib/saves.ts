@@ -70,11 +70,12 @@ interface SaveRow {
   created_at: Date | string;
   media_type: string | null;
   bytes: number | null;
+  tags: string[] | null;
 }
 
 const SELECT = `
   select s.id, s.kind, s.source_url, s.title, s.description, s.preview_url, s.status,
-         s.error, s.duplicate_of, s.created_at, a.media_type, a.bytes
+         s.error, s.duplicate_of, s.created_at, a.media_type, a.bytes, s.tags
   from save s
   left join asset a on a.save_id = s.id and a.user_id = s.user_id`;
 
@@ -90,6 +91,7 @@ function toSave(r: SaveRow): Save {
     status: r.status as SaveStatus,
     error: r.error,
     duplicateOf: r.duplicate_of,
+    tags: r.tags ?? [],
     createdAt: new Date(r.created_at).toISOString(),
   };
 }

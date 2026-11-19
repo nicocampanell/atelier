@@ -24,6 +24,8 @@ export interface Save {
   error: string | null;
   /** True when the same source URL was already saved. */
   duplicateOf: string | null;
+  /** Visual tags detected in the image (empty when none or not tagged yet). */
+  tags: string[];
   createdAt: string; // ISO
 }
 
@@ -63,7 +65,7 @@ export interface SearchResponse {
   hits: SearchHit[];
   /** Hits that scored under half the top score, shown folded. */
   weaker: SearchHit[];
-  /** False when no embedding key is set, so only keywords were used. */
+  /** True when semantic relevance scoring succeeded for this search. */
   semantic: boolean;
 }
 

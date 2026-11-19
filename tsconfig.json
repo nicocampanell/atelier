@@ -39,7 +39,9 @@
     ".next-verify-backend/types/**/*.ts",
     ".next-verify-backend/dev/types/**/*.ts",
     ".next-verify-ext/types/**/*.ts",
-    ".next-verify-ext/dev/types/**/*.ts"
+    ".next-verify-ext/dev/types/**/*.ts",
+    ".next-demo/types/**/*.ts",
+    ".next-demo/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
