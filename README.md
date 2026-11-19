@@ -29,11 +29,14 @@ The front end lives in `web/` (Vite, React, TypeScript).
 
 ```bash
 cd web
+cp .env.example .env.local   # VITE_SUPABASE_* required for sign-in
 npm install
 npm run dev
 ```
 
 Open the printed local URL (http://localhost:5173). `npm run build` type-checks and builds for production.
+
+Hosted deploy (Cloudflare Pages): see [web/docs/deploy-pages.md](web/docs/deploy-pages.md). Production builds need `VITE_API_URL` pointing at the Workers API.
 
 ## Reference research
 

@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
-import { ApiClientError, createApiClient, type FetchLike } from './client';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { apiUrl, ApiClientError, createApiClient, type FetchLike } from './client';
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -131,4 +131,16 @@ describe('api client', () => {
     expect(new Headers(fetch.mock.calls[0][1]!.headers).get('Authorization')).toBe('Bearer from-storage');
     localStorage.removeItem('atelier-token');
   });
+
+  it('prefixes VITE_API_URL when set', async () => {
+    vi.stubEnv('VITE_API_URL', 'https://api.example.com/');
+    expect(apiUrl('/api/projects')).toBe('https://api.example.com/api/projects');
+    const { api, fetch } = setup(json({ ok: true, data: { projects: [] } }));
+    await api.listProjects();
+    expect(fetch.mock.calls[0][0]).toBe('https://api.example.com/api/projects');
+  });
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useBackendStatus } from '../refs/backend';
-import { connectBackend, disconnectBackend } from '../api/client';
+import { connectBackend } from '../api/client';
+import { signOut } from '../auth/session';
 import type { BackendStatus } from '../refs/contracts';
 import { Dialog } from './Dialog';
 
@@ -58,7 +59,7 @@ export function ConnectDialog({ onClose }: { onClose(): void }) {
             className="dlg__btn dlg__btn--danger"
             disabled={status === 'off'}
             onClick={() => {
-              disconnectBackend();
+              void signOut();
               setToken('');
             }}
           >

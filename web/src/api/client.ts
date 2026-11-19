@@ -1,8 +1,14 @@
 // Typed adapter over the Atelier backend HTTP API (see the backend's lib/types.ts).
-// Same-origin "/api/..." URLs; in dev the Vite proxy forwards them. The token is read from
-// localStorage on every call and is never logged.
+// Dev: same-origin "/api/..." via the Vite proxy. Production: absolute VITE_API_URL.
+// Bearer is the Supabase access_token (localStorage); never logged.
 
 export const TOKEN_STORAGE_KEY = 'atelier-token';
+
+/** Empty in dev (proxy); absolute Workers origin in production. */
+export function apiUrl(path: string): string {
+  const base = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? '';
+  return `${base}${path}`;
+}
 
 export type SaveKind = 'url' | 'image' | 'file' | 'note';
 export type SaveStatus = 'accepted' | 'processing' | 'ready' | 'failed';
@@ -112,7 +118,7 @@ export function createApiClient(opts: ClientOptions = {}) {
     }
     let res: Response;
     try {
-      res = await doFetch(path, { ...init, headers });
+      res = await doFetch(apiUrl(path), { ...init, headers });
     } catch {
       throw new ApiClientError('network_error', "Couldn't reach the backend.", 0);
     }

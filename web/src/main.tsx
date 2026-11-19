@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App';
+import { AuthGate } from './auth/AuthGate';
 import { refsReady } from './refs/store';
 
 if (import.meta.env.DEV) void import('./dev/seed');
@@ -10,7 +11,9 @@ if (import.meta.env.DEV) void import('./dev/seed');
 void refsReady.then(() =>
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
-      <App />
+      <AuthGate>
+        <App />
+      </AuthGate>
     </StrictMode>,
   ),
 );
