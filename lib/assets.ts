@@ -2,7 +2,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { getDataDir, getDb } from "./db";
+import { db, getDataDir, sbError } from "./db";
 
 export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
@@ -61,15 +61,25 @@ export interface AssetFile {
 
 /** Owner-filtered lookup; null when missing, foreign, or its save is deleted. */
 export async function readAsset(userId: string, assetId: string): Promise<AssetFile | null> {
-  const db = await getDb();
-  const r = await db.query<{ media_type: string; storage_path: string }>(
-    `select a.media_type, a.storage_path
-     from asset a join save s on s.id = a.save_id and s.user_id = a.user_id
-     where a.user_id = $1 and a.id = $2 and s.deleted_at is null`,
-    [userId, assetId],
-  );
-  const row = r.rows[0];
+  const { data: row, error } = await db()
+    .from("asset")
+    .select("media_type, storage_path, save_id")
+    .eq("user_id", userId)
+    .eq("id", assetId)
+    .maybeSingle();
+  if (error) sbError(error);
   if (!row) return null;
+
+  const { data: save, error: sErr } = await db()
+    .from("save")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("id", row.save_id)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (sErr) sbError(sErr);
+  if (!save) return null;
+
   const root = path.resolve(getDataDir(), "assets") + path.sep;
   const full = path.resolve(getDataDir(), row.storage_path);
   if (!full.startsWith(root)) return null;

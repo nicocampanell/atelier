@@ -45,6 +45,11 @@
   ],
   "exclude": [
     "node_modules",
-    "extension"
+    "extension",
+    "scripts/verify-backend.ts",
+    "scripts/verify-projects.ts",
+    "scripts/verify-extension.ts",
+    "scripts/verify-jev.ts",
+    "scripts/verify-tags.ts"
   ]
 }

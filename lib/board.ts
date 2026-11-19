@@ -1,7 +1,7 @@
 // Board data access. Item order is preserved exactly as sent, via the `pos`
 // column; GET returns items ordered by pos.
 import { randomUUID } from "node:crypto";
-import { getDb } from "./db";
+import { db, sbError } from "./db";
 import { ApiError } from "./http";
 import type { Board, BoardItem } from "./types";
 
@@ -83,71 +83,125 @@ interface BoardRow {
 
 /** The oldest board is the default project; created on first use. */
 async function ensureDefaultBoard(userId: string): Promise<BoardRow> {
-  const db = await getDb();
-  await db.query(
-    `insert into board (id, user_id, camera)
-     select $1, $2, $3::jsonb where not exists (select 1 from board where user_id = $2)`,
-    [randomUUID(), userId, JSON.stringify(DEFAULT_CAMERA)],
-  );
-  const r = await db.query<BoardRow>(
-    `select id, camera from board where user_id = $1 order by created_at, id limit 1`,
-    [userId],
-  );
-  return r.rows[0];
+  const { data: existing, error } = await db()
+    .from("board")
+    .select("id, camera")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (error) sbError(error);
+  if (existing) return existing as BoardRow;
+
+  const id = randomUUID();
+  const { error: insErr } = await db()
+    .from("board")
+    .insert({ id, user_id: userId, camera: DEFAULT_CAMERA });
+  // Concurrent first-call race: unique isn't on user_id, so two inserts can land;
+  // re-select oldest either way.
+  if (insErr && (insErr as { code?: string }).code !== "23505") sbError(insErr);
+
+  const { data: row, error: rErr } = await db()
+    .from("board")
+    .select("id, camera")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (rErr) sbError(rErr);
+  return row as BoardRow;
 }
 
 /** Resolve a project's board for this user: the default when projectId is undefined, else 404. */
 export async function resolveBoard(userId: string, projectId?: string): Promise<BoardRow> {
   if (projectId === undefined) return ensureDefaultBoard(userId);
-  const db = await getDb();
-  const r = await db.query<BoardRow>(`select id, camera from board where user_id = $1 and id = $2`, [userId, projectId]);
-  if (!r.rows[0]) throw new ApiError(404, "project_not_found", "That project doesn't exist.");
-  return r.rows[0];
+  const { data, error } = await db()
+    .from("board")
+    .select("id, camera")
+    .eq("user_id", userId)
+    .eq("id", projectId)
+    .maybeSingle();
+  if (error) sbError(error);
+  if (!data) throw new ApiError(404, "project_not_found", "That project doesn't exist.");
+  return data as BoardRow;
 }
 
 export async function getBoard(userId: string, projectId?: string): Promise<Board> {
-  const db = await getDb();
   const board = await resolveBoard(userId, projectId);
-  // Save items pointing at deleted or missing saves are dropped.
-  const r = await db.query<ItemRow>(
-    `select bi.id, bi.type, bi.save_id, bi.text, bi.x, bi.y, bi.w, bi.h, bi.z
-     from board_item bi
-     left join save s on s.id = bi.save_id and s.user_id = bi.user_id
-     where bi.user_id = $1 and bi.board_id = $2
-       and (bi.type <> 'save' or (s.id is not null and s.deleted_at is null))
-     order by bi.pos`,
-    [userId, board.id],
-  );
-  return { id: board.id, camera: board.camera, items: r.rows.map(toItem) };
+  const { data: items, error } = await db()
+    .from("board_item")
+    .select("id, type, save_id, text, x, y, w, h, z, pos")
+    .eq("user_id", userId)
+    .eq("board_id", board.id)
+    .order("pos", { ascending: true });
+  if (error) sbError(error);
+
+  const saveIds = [...new Set((items ?? []).filter((i) => i.type === "save" && i.save_id).map((i) => i.save_id as string))];
+  const live = new Set<string>();
+  if (saveIds.length) {
+    const { data: saves, error: sErr } = await db()
+      .from("save")
+      .select("id")
+      .eq("user_id", userId)
+      .is("deleted_at", null)
+      .in("id", saveIds);
+    if (sErr) sbError(sErr);
+    for (const s of saves ?? []) live.add(s.id);
+  }
+
+  const kept = (items ?? []).filter((i) => i.type !== "save" || (i.save_id && live.has(i.save_id)));
+  return { id: board.id, camera: board.camera, items: kept.map((r) => toItem(r as ItemRow)) };
 }
 
 export async function putBoard(userId: string, body: unknown, projectId?: string): Promise<Board> {
   const { camera, items } = parseBoard(body);
-  const db = await getDb();
   const board = await resolveBoard(userId, projectId);
 
   const saveIds = items.filter((i) => i.type === "save").map((i) => i.saveId as string);
   const live = new Set<string>();
   if (saveIds.length) {
-    const r = await db.query<{ id: string }>(
-      `select id from save where user_id = $1 and deleted_at is null and id = any($2::text[])`,
-      [userId, saveIds],
-    );
-    for (const row of r.rows) live.add(row.id);
+    const { data, error } = await db()
+      .from("save")
+      .select("id")
+      .eq("user_id", userId)
+      .is("deleted_at", null)
+      .in("id", saveIds);
+    if (error) sbError(error);
+    for (const row of data ?? []) live.add(row.id);
   }
   const kept = items.filter((i) => i.type === "note" || live.has(i.saveId as string));
 
-  await db.transaction(async (tx) => {
-    await tx.query(`update board set camera = $3::jsonb, updated_at = now() where user_id = $1 and id = $2`, [userId, board.id, JSON.stringify(camera)]);
-    await tx.query(`delete from board_item where user_id = $1 and board_id = $2`, [userId, board.id]);
-    let pos = 0;
-    for (const it of kept) {
-      await tx.query(
-        `insert into board_item (id, user_id, board_id, pos, type, save_id, text, x, y, w, h, z)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
-        [it.id, userId, board.id, pos++, it.type, it.saveId, it.text, it.x, it.y, it.w, it.h, it.z],
-      );
-    }
-  });
+  // ponytail: no multi-statement tx via supabase-js; replace items in two steps (single-user).
+  const { error: uErr } = await db()
+    .from("board")
+    .update({ camera, updated_at: new Date().toISOString() })
+    .eq("user_id", userId)
+    .eq("id", board.id);
+  if (uErr) sbError(uErr);
+
+  const { error: dErr } = await db().from("board_item").delete().eq("user_id", userId).eq("board_id", board.id);
+  if (dErr) sbError(dErr);
+
+  if (kept.length) {
+    const { error: iErr } = await db().from("board_item").insert(
+      kept.map((it, pos) => ({
+        id: it.id,
+        user_id: userId,
+        board_id: board.id,
+        pos,
+        type: it.type,
+        save_id: it.saveId,
+        text: it.text,
+        x: it.x,
+        y: it.y,
+        w: it.w,
+        h: it.h,
+        z: it.z,
+      })),
+    );
+    if (iErr) sbError(iErr);
+  }
   return getBoard(userId, board.id);
 }

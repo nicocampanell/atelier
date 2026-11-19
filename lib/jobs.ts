@@ -1,6 +1,6 @@
 // Background processing for saves (in-process). Status flow:
 // accepted -> processing -> ready | failed. Every path ends in ready or failed.
-import { getDb } from "./db";
+import { db, sbError } from "./db";
 import { decodeBody, extractHtml, MAX_TEXT_CHARS } from "./extract";
 import { SafeFetchError, safeFetch } from "./fetch-safe";
 import { indexSave } from "./search/index";
@@ -47,18 +47,27 @@ export function enqueueProcessing(userId: string, saveId: string): void {
   enqueue(`${userId}:${saveId}`, () => processSave(userId, saveId));
 }
 
-/** On first DB open: pick up saves a previous process left half-done, then tag untagged ones. */
+/** On first DB use: pick up saves a previous process left half-done, then tag untagged ones. */
 export async function requeueStuck(): Promise<void> {
-  const db = await getDb();
-  const r = await db.query<{ id: string; user_id: string }>(
-    `select id, user_id from save where deleted_at is null and status in ('accepted','processing') order by created_at`,
-  );
-  for (const row of r.rows) enqueueProcessing(row.user_id, row.id);
+  const { data: stuck, error } = await db()
+    .from("save")
+    .select("id, user_id")
+    .is("deleted_at", null)
+    .in("status", ["accepted", "processing"])
+    .order("created_at", { ascending: true });
+  if (error) sbError(error);
+  for (const row of stuck ?? []) enqueueProcessing(row.user_id, row.id);
+
   if (!process.env.TYPESAFE_API_KEY?.trim()) return;
-  const untagged = await db.query<{ id: string; user_id: string }>(
-    `select id, user_id from save where deleted_at is null and status = 'ready' and tags is null order by created_at desc`,
-  );
-  for (const row of untagged.rows) {
+  const { data: untagged, error: uErr } = await db()
+    .from("save")
+    .select("id, user_id")
+    .is("deleted_at", null)
+    .eq("status", "ready")
+    .is("tags", null)
+    .order("created_at", { ascending: false });
+  if (uErr) sbError(uErr);
+  for (const row of untagged ?? []) {
     enqueue(`${row.user_id}:${row.id}:tags`, () => retagSave(row.user_id, row.id).catch(() => {}));
   }
 }
@@ -71,12 +80,13 @@ function readable(e: unknown): string {
 
 async function markFailed(userId: string, id: string, message: string) {
   try {
-    const db = await getDb();
-    await db.query(
-      `update save set status = 'failed', error = $3
-       where user_id = $1 and id = $2 and deleted_at is null and status in ('accepted','processing')`,
-      [userId, id, message.slice(0, 500)],
-    );
+    await db()
+      .from("save")
+      .update({ status: "failed", error: message.slice(0, 500) })
+      .eq("user_id", userId)
+      .eq("id", id)
+      .is("deleted_at", null)
+      .in("status", ["accepted", "processing"]);
   } catch {
     /* nothing more we can do */
   }
@@ -111,14 +121,17 @@ interface Row {
 }
 
 async function doProcess(userId: string, saveId: string): Promise<void> {
-  const db = await getDb();
-  const claimed = await db.query<Row>(
-    `update save set status = 'processing', error = null
-     where user_id = $1 and id = $2 and deleted_at is null and status in ('accepted','processing')
-     returning kind, source_url, title, title_user, description, preview_url, note, extracted_text`,
-    [userId, saveId],
-  );
-  const row = claimed.rows[0];
+  const { data: claimed, error } = await db()
+    .from("save")
+    .update({ status: "processing", error: null })
+    .eq("user_id", userId)
+    .eq("id", saveId)
+    .is("deleted_at", null)
+    .in("status", ["accepted", "processing"])
+    .select("kind, source_url, title, title_user, description, preview_url, note, extracted_text")
+    .maybeSingle();
+  if (error) sbError(error);
+  const row = claimed as Row | null;
   if (!row) return; // deleted or already finished
 
   let title = row.title;
@@ -147,22 +160,28 @@ async function doProcess(userId: string, saveId: string): Promise<void> {
     } else if (!row.title_user) {
       title = fallbackTitle;
     }
-    await db.query(
-      `update save set title = $3, description = $4, preview_url = $5, extracted_text = $6
-       where user_id = $1 and id = $2 and deleted_at is null`,
-      [userId, saveId, title, description, previewUrl, text],
-    );
+    const { error: uErr } = await db()
+      .from("save")
+      .update({ title, description, preview_url: previewUrl, extracted_text: text })
+      .eq("user_id", userId)
+      .eq("id", saveId)
+      .is("deleted_at", null);
+    if (uErr) sbError(uErr);
   }
 
   const tags = await tagsFor(userId, saveId, previewUrl);
   await indexSave(userId, saveId, { title, description, text: indexText(row, text), sourceUrl: row.source_url, kind: row.kind, tags });
 
-  const done = await db.query(
-    `update save set status = 'ready', error = null, tags = $3
-     where user_id = $1 and id = $2 and deleted_at is null and status = 'processing' returning id`,
-    [userId, saveId, tags],
-  );
-  if (done.rows.length === 0) {
+  const { data: done, error: dErr } = await db()
+    .from("save")
+    .update({ status: "ready", error: null, tags })
+    .eq("user_id", userId)
+    .eq("id", saveId)
+    .is("deleted_at", null)
+    .eq("status", "processing")
+    .select("id");
+  if (dErr) sbError(dErr);
+  if (!done?.length) {
     // Deleted while we were working: make sure nothing lingers in the index.
     const { removeSaveIndex } = await import("./search/index");
     await removeSaveIndex(userId, saveId).catch(() => {});
@@ -177,11 +196,14 @@ const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 
 /** Visual tags for a save: [] when it has no image, null when tagging failed (retried on next startup). */
 async function tagsFor(userId: string, saveId: string, previewUrl: string | null): Promise<string[] | null> {
-  const db = await getDb();
-  const asset = (await db.query<{ storage_path: string; media_type: string; bytes: number }>(
-    `select storage_path, media_type, bytes from asset where user_id = $1 and save_id = $2 limit 1`,
-    [userId, saveId],
-  )).rows[0];
+  const { data: asset, error } = await db()
+    .from("asset")
+    .select("storage_path, media_type, bytes")
+    .eq("user_id", userId)
+    .eq("save_id", saveId)
+    .limit(1)
+    .maybeSingle();
+  if (error) sbError(error);
   const hasImage = asset ? IMAGE_TYPES.includes(asset.media_type) : Boolean(previewUrl && /^https?:\/\//i.test(previewUrl));
   if (!hasImage) return [];
   if (!process.env.TYPESAFE_API_KEY?.trim()) return null;
@@ -194,18 +216,29 @@ async function tagsFor(userId: string, saveId: string, previewUrl: string | null
 
 /** Tag a ready save that has no tags yet and re-index it with them. */
 async function retagSave(userId: string, saveId: string): Promise<void> {
-  const db = await getDb();
-  const row = (await db.query<Row>(
-    `select kind, source_url, title, title_user, description, preview_url, note, extracted_text
-     from save where user_id = $1 and id = $2 and deleted_at is null and status = 'ready' and tags is null`,
-    [userId, saveId],
-  )).rows[0];
+  const { data: row, error } = await db()
+    .from("save")
+    .select("kind, source_url, title, title_user, description, preview_url, note, extracted_text")
+    .eq("user_id", userId)
+    .eq("id", saveId)
+    .is("deleted_at", null)
+    .eq("status", "ready")
+    .is("tags", null)
+    .maybeSingle();
+  if (error) sbError(error);
   if (!row) return;
-  const tags = await tagsFor(userId, saveId, row.preview_url);
+  const r = row as Row;
+  const tags = await tagsFor(userId, saveId, r.preview_url);
   if (!tags) return;
   await indexSave(userId, saveId, {
-    title: row.title, description: row.description, text: indexText(row, row.extracted_text ?? ""),
-    sourceUrl: row.source_url, kind: row.kind, tags,
+    title: r.title, description: r.description, text: indexText(r, r.extracted_text ?? ""),
+    sourceUrl: r.source_url, kind: r.kind, tags,
   });
-  await db.query(`update save set tags = $3 where user_id = $1 and id = $2 and deleted_at is null`, [userId, saveId, tags]);
+  const { error: uErr } = await db()
+    .from("save")
+    .update({ tags })
+    .eq("user_id", userId)
+    .eq("id", saveId)
+    .is("deleted_at", null);
+  if (uErr) sbError(uErr);
 }

@@ -4,7 +4,9 @@
 
 1. Create or open your project in the [Supabase Dashboard](https://supabase.com/dashboard).
 2. Open **SQL Editor** → **New query**.
-3. Paste the full contents of `supabase/migrations/20261119_init.sql` and click **Run**.
+3. Paste and run, in order:
+   - `supabase/migrations/20261119_init.sql` (schema + RLS + storage bucket)
+   - `supabase/migrations/20261119_search_segments.sql` (FTS RPC used by `/api/search`)
 
 ## Option 2: Supabase CLI
 
