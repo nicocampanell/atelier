@@ -1,0 +1,126 @@
+.focus {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  outline: none;
+}
+.focus__backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
+  -webkit-backdrop-filter: blur(7px);
+  backdrop-filter: blur(7px);
+}
+.focus__layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  pointer-events: none;
+}
+.focus__layer > * { pointer-events: auto; }
+
+.focus__stage {
+  position: relative;
+  width: min(86vw, calc(76vh * var(--ar)));
+  aspect-ratio: var(--ar);
+  border-radius: var(--card-radius);
+  overflow: hidden;
+  box-shadow: var(--card-shadow-lift);
+  will-change: transform;
+}
+.focus__stage--card {
+  width: min(86vw, 640px);
+  aspect-ratio: auto;
+  max-height: 76vh;
+  overflow-y: auto;
+  padding: 28px 32px;
+  background: var(--note-bg);
+  color: var(--text);
+}
+.focus__stage--link { background: var(--card-bg); }
+
+.focus__media,
+.focus__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.focus__img { object-fit: cover; }
+.focus__media:focus-visible { outline: none; box-shadow: inset var(--focus-ring); }
+
+.focus__card-title {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.focus__card-source { margin: -6px 0 12px; font-size: 13px; color: var(--text-3); }
+.focus__card-body { margin: 0; font-size: 20px; line-height: 1.5; white-space: pre-wrap; }
+.focus__stage--link .focus__card-body { font-size: 16px; color: var(--text-2); }
+.focus__stage--link .focus__card-title { font-size: 20px; letter-spacing: 0; text-transform: none; color: var(--text); }
+.focus__visit { margin-top: 20px; }
+
+.focus__pill {
+  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: 0;
+  border-radius: 999px; background: #fff; color: #1c1a17; font: 500 12px var(--font-sans);
+  cursor: pointer; text-decoration: none; box-shadow: 0 1px 3px rgba(20, 18, 14, 0.18), 0 4px 12px rgba(20, 18, 14, 0.1);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.focus__pill:active { transform: scale(0.96); }
+.focus__pill:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.focus__media .focus__pill {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.focus__media:hover .focus__pill,
+.focus__media:focus-visible .focus__pill { opacity: 1; }
+
+.focus__caption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  max-width: 86vw;
+  text-align: center;
+  animation: focus-fade var(--dur) var(--ease-out) both;
+}
+.focus__title { font-size: 14px; font-weight: 600; }
+.focus__meta { font-size: 12px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+
+.focus__btn {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--panel-bg);
+  color: var(--text);
+  box-shadow: var(--card-shadow);
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.focus__btn:hover { box-shadow: var(--card-shadow-lift); }
+.focus__btn:active { transform: scale(0.94); }
+.focus__btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.focus__btn--prev { left: 20px; top: 50%; margin-top: -22px; }
+.focus__btn--next { right: 20px; top: 50%; margin-top: -22px; }
+.focus__btn--close { top: 20px; right: 20px; }
+
+@keyframes focus-fade {
+  from { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .focus__caption { animation: none; }
+}

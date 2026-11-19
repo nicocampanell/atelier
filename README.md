@@ -23,7 +23,17 @@ Start with the first three documents. Write rough answers, leave blanks when nee
 - Record consequential decisions in the decision log, including why they were made.
 - When direction changes, update the affected documents and preserve the decision history.
 
-There is no application code or development setup yet. Add setup and run instructions here once those exist.
+## Run the front end
+
+The front end lives in `web/` (Vite, React, TypeScript).
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+Open the printed local URL (http://localhost:5173). `npm run build` type-checks and builds for production.
 
 ## Reference research
 

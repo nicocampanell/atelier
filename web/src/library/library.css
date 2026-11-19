@@ -1,0 +1,228 @@
+.lib-page {
+  position: fixed;
+  top: var(--header-h);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--canvas-bg);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 40px;
+  font-family: var(--font-sans);
+  color: var(--text);
+  isolation: isolate;
+}
+.lib-page .visually-hidden {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+.lib-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.lib-h1 { margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.02em; color: var(--text); }
+.lib-count { font-size: 15px; color: var(--text-3); }
+.lib-seg {
+  margin-left: auto; align-self: center; display: inline-flex; padding: 3px; gap: 2px;
+  background: var(--chip-bg); border-radius: 999px;
+}
+.lib-seg-btn {
+  height: 30px; padding: 0 16px; border: 0; border-radius: 999px; background: transparent;
+  font: 500 13px var(--font-sans); color: var(--text-2); cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.lib-seg-btn[aria-pressed='true'] {
+  background: var(--panel-bg); color: var(--text); box-shadow: 0 1px 2px rgba(20, 18, 14, 0.1);
+}
+.lib-seg-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* Filters */
+.lib-filters {
+  position: sticky; top: -40px; z-index: 20;
+  margin: 0 -40px; padding: 20px 40px 16px;
+  background: var(--canvas-bg);
+  display: flex; flex-direction: column; gap: 12px;
+}
+.lib-search {
+  display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 16px;
+  background: var(--panel-bg); border-radius: 999px; color: var(--text-3);
+  max-width: 520px; width: 100%;
+}
+.lib-search:focus-within { box-shadow: var(--focus-ring); }
+.lib-search input {
+  flex: 1; min-width: 0; border: 0; outline: 0; background: transparent;
+  font: 400 15px var(--font-sans); color: var(--text);
+}
+.lib-search input::placeholder { color: var(--text-3); }
+.lib-search-clear {
+  display: grid; place-items: center; width: 24px; height: 24px; border: 0; border-radius: 50%;
+  background: var(--chip-bg); color: var(--text-2); cursor: pointer;
+}
+.lib-search-clear:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.lib-chip-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.lib-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.lib-chip {
+  display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px; border: 0;
+  border-radius: 999px; background: var(--chip-bg); color: var(--text);
+  font: 500 13px var(--font-sans); cursor: pointer; white-space: nowrap; flex: none;
+  transition: background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+.lib-chip:hover { background: var(--chip-bg-hover); }
+.lib-chip:active { transform: scale(0.97); }
+.lib-chip:focus-visible, .lib-select:focus-within { outline: none; box-shadow: var(--focus-ring); }
+.lib-chip[data-active] { background: var(--chip-active-bg); color: var(--chip-active-text); }
+.lib-tag-count { font: 400 11px ui-monospace, 'SF Mono', Menlo, monospace; color: var(--text-3); }
+.lib-tag[data-active] .lib-tag-count { color: inherit; opacity: 0.6; }
+.lib-select { padding: 0; position: relative; }
+.lib-select select {
+  appearance: none; -webkit-appearance: none; height: 34px; padding: 0 30px 0 14px; border: 0; outline: 0;
+  border-radius: 999px; background: transparent; color: inherit; font: inherit; cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-size: 4px 4px; background-repeat: no-repeat;
+  background-position: calc(100% - 15px) 14px, calc(100% - 11px) 14px;
+}
+.lib-select select option { color: #1c1a17; background: #fff; }
+.lib-tags {
+  display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 2px 0;
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 48px), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 48px), transparent);
+}
+.lib-tags::-webkit-scrollbar { display: none; }
+
+/* Grid */
+.lib-grid { columns: 1; column-gap: 20px; padding-bottom: 8px; }
+@media (min-width: 560px) { .lib-grid { columns: 2; } }
+@media (min-width: 900px) { .lib-grid { columns: 3; } }
+@media (min-width: 1200px) { .lib-grid { columns: 4; } }
+
+.lib-card, .lib-row { animation: lib-in 280ms var(--ease-out) both; }
+@keyframes lib-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .lib-card, .lib-row { animation: none; } }
+
+.lib-card {
+  position: relative; break-inside: avoid; margin: 0 0 20px; padding: 10px;
+  background: var(--panel-bg); border-radius: 20px; cursor: grab;
+  box-shadow: 0 1px 2px rgba(20, 18, 14, 0.04), 0 6px 20px rgba(20, 18, 14, 0.05);
+}
+.lib-card.is-menu-open { z-index: 10; }
+/* Skip layout/paint of off-screen cards; `auto` remembers each card's real height once it has been seen.
+   Not while the add-menu is open (paint containment would clip the dropdown). */
+.lib-card:not(:has(.lib-menu)) { content-visibility: auto; contain-intrinsic-size: auto 300px; }
+.lib-media { position: relative; }
+.lib-img { display: block; width: 100%; height: auto; object-fit: cover; border-radius: 14px; }
+.lib-mini { border-radius: 14px; padding: 14px; font-size: 13px; line-height: 1.5; color: var(--text-2); border: 1px solid var(--card-border); }
+.lib-mini p { margin: 0; display: -webkit-box; -webkit-line-clamp: 8; -webkit-box-orient: vertical; overflow: hidden; }
+.lib-mini-note { background: var(--note-bg); }
+.lib-mini-link { background: var(--card-bg); display: flex; flex-direction: column; gap: 10px; padding: 8px; }
+.lib-mini-thumb { aspect-ratio: 16 / 9; border-radius: 10px; }
+.lib-mini-body { padding: 4px 6px 6px; display: flex; flex-direction: column; gap: 6px; }
+.lib-mini-icon { color: var(--text-3); margin-bottom: 6px; }
+.lib-mini-body .lib-mini-icon { margin-bottom: 0; }
+
+.lib-meta { display: flex; align-items: flex-start; gap: 8px; padding: 12px 4px 4px; }
+.lib-meta-text { flex: 1; min-width: 0; }
+.lib-title { margin: 0; font-size: 14px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; }
+.lib-source { margin: 2px 0 0; font-size: 12px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-badges { display: inline-flex; gap: 4px; flex: none; max-width: 55%; flex-wrap: wrap; justify-content: flex-end; }
+.lib-badge {
+  font-size: 11px; line-height: 1; padding: 5px 8px; border-radius: 999px; background: var(--chip-bg);
+  color: var(--text-2); white-space: nowrap; max-width: 110px; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* Actions */
+.lib-actions {
+  position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; align-items: flex-start;
+  opacity: 0; transform: translateY(-2px); pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+.lib-card:hover .lib-actions, .lib-card:focus-within .lib-actions, .lib-card.is-menu-open .lib-actions {
+  opacity: 1; transform: none; pointer-events: auto;
+}
+@media (hover: none) { .lib-actions { opacity: 1; transform: none; pointer-events: auto; } }
+.lib-menu-host { display: contents; }
+.lib-menu-wrap { position: relative; }
+.lib-pill-btn {
+  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: 0;
+  border-radius: 999px; background: #fff; color: #1c1a17; font: 500 12px var(--font-sans);
+  cursor: pointer; text-decoration: none; box-shadow: 0 1px 3px rgba(20, 18, 14, 0.18), 0 4px 12px rgba(20, 18, 14, 0.1);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.lib-pill-btn:active { transform: scale(0.96); }
+.lib-pill-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.lib-pill-icon { width: 30px; padding: 0; justify-content: center; }
+
+.lib-menu {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; width: 240px; max-height: 300px; overflow-y: auto;
+  padding: 6px; background: var(--panel-bg); border-radius: 14px; box-shadow: var(--panel-shadow);
+  border: 1px solid var(--card-border);
+}
+.lib-menu-row { display: flex; align-items: center; }
+.lib-menu-item, .lib-menu-open {
+  border: 0; background: transparent; color: var(--text); font: 400 13px var(--font-sans); cursor: pointer; text-align: left;
+}
+.lib-menu-item {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 9px; flex-wrap: wrap;
+}
+.lib-menu-item[aria-disabled='true'] { cursor: default; }
+.lib-menu-item:hover, .lib-menu-open:hover { background: var(--chip-bg); }
+.lib-menu-item:focus-visible, .lib-menu-open:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.lib-menu-check { width: 14px; height: 14px; display: grid; place-items: center; color: var(--accent); flex: none; }
+.lib-menu-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-menu-flash { flex-basis: 100%; padding-left: 22px; font-size: 11px; color: var(--accent); }
+.lib-menu-open { padding: 6px 10px; border-radius: 9px; color: var(--text-2); font-size: 12px; flex: none; }
+.lib-menu-new { padding: 4px; }
+.lib-menu-input {
+  width: 100%; height: 34px; padding: 0 12px; border: 0; border-radius: 9px; background: var(--chip-bg);
+  color: var(--text); font: 400 13px var(--font-sans); outline: 0; box-sizing: border-box;
+}
+.lib-menu-input:focus { box-shadow: var(--focus-ring); }
+
+/* List */
+.lib-list { background: var(--panel-bg); border-radius: 20px; padding: 4px 16px; }
+.lib-row {
+  display: flex; align-items: center; gap: 16px; height: 64px; cursor: grab;
+  border-bottom: 1px solid var(--card-border);
+}
+.lib-row:last-child { border-bottom: 0; }
+/* Skip rendering offscreen rows. Rows are a fixed 64px, so the intrinsic size is exact and the
+   scroll height never changes. Not applied while the add-menu is open (paint containment would
+   clip the dropdown). The masonry grid is deliberately excluded: card heights vary by image
+   aspect ratio and a size guess would change column balancing as cards scroll into view. */
+.lib-row:not(:has(.lib-menu)) { content-visibility: auto; contain-intrinsic-size: auto 64px; }
+.lib-thumb {
+  width: 48px; height: 48px; flex: none; border-radius: 10px; overflow: hidden; display: grid; place-items: center;
+  background: var(--chip-bg); color: var(--text-3);
+}
+.lib-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lib-row-text { flex: 1; min-width: 0; }
+.lib-row .lib-title { white-space: nowrap; }
+.lib-row-tags { display: flex; gap: 4px; flex: none; }
+.lib-row .lib-badges { max-width: 220px; flex-wrap: nowrap; }
+.lib-row-actions { display: flex; gap: 6px; flex: none; }
+.lib-row .lib-pill-btn { background: var(--chip-bg); color: var(--text); box-shadow: none; }
+.lib-row .lib-pill-btn:hover { background: var(--chip-bg-hover); }
+.lib-row .lib-pill-btn:focus-visible { box-shadow: var(--focus-ring); }
+@media (max-width: 899px) { .lib-row-tags { display: none; } }
+@media (max-width: 599px) { .lib-row .lib-badges { display: none; } .lib-pill-btn span { display: none; } .lib-row .lib-pill-btn:not(.lib-pill-icon) { width: 30px; padding: 0; justify-content: center; } }
+
+/* Empty */
+.lib-empty { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 96px 0; color: var(--text-2); font-size: 15px; }
+.lib-empty p { margin: 0; }
+.lib-clear {
+  height: 36px; padding: 0 18px; border: 0; border-radius: 999px; background: var(--chip-bg); color: var(--text);
+  font: 500 13px var(--font-sans); cursor: pointer;
+}
+.lib-clear:hover { background: var(--chip-bg-hover); }
+.lib-clear:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+@media (max-width: 599px) {
+  .lib-page { padding: 20px; }
+  .lib-filters { top: -20px; margin: 0 -20px; padding: 16px 20px 12px; }
+}
+
+.lib-menu-sep { height: 1px; margin: 6px 4px; background: var(--card-border); }
+.lib-menu-item--danger, .lib-menu-item--danger .lib-menu-check { color: var(--danger); }
+.lib-menu-item--danger:hover { background: var(--danger-soft); }
+.lib-status {
+  display: inline-flex; align-items: center; gap: 6px; flex: none; font-size: 11px; line-height: 1;
+  padding: 5px 8px; border-radius: 999px; background: var(--chip-bg); color: var(--text-2);
+}
+.lib-status.is-bad { background: var(--danger-soft); color: var(--danger); }
+.lib-thumb { position: relative; }

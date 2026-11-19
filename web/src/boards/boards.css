@@ -1,0 +1,532 @@
+/* ---------- Layers inside the camera world ---------- */
+.overview-layer,
+.board-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+.overview-layer[data-fade='out'] {
+  animation: layer-fade-out 160ms linear forwards;
+  pointer-events: none;
+}
+.overview-layer[data-fade='in'] {
+  animation: layer-fade-in 160ms linear both;
+  pointer-events: none;
+}
+.board-layer[data-fade='in'] {
+  animation: layer-fade-in 160ms linear both;
+}
+.board-layer[data-fade='out'] {
+  animation: layer-fade-out 160ms linear forwards;
+  pointer-events: none;
+}
+@keyframes layer-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes layer-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* ---------- Tiles ---------- */
+.tile {
+  --tile-card-shadow: 0 1px 2px rgba(20, 18, 14, 0.05), 0 4px 14px rgba(20, 18, 14, 0.05);
+  --danger: #c9372c;
+  position: absolute;
+  transition: opacity 200ms linear;
+}
+.tile.is-menu {
+  z-index: 5;
+}
+.tile__frame {
+  position: absolute;
+  inset: 0;
+  display: block;
+  border-radius: var(--frame-radius);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  outline: none;
+  transition:
+    background 200ms linear,
+    border-color 200ms linear,
+    box-shadow var(--dur) var(--ease-out);
+}
+.tile__frame:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+.tile.is-drop .tile__frame {
+  box-shadow: 0 0 0 2px var(--accent);
+  background: var(--accent-soft);
+}
+.tile.is-pulse .tile__frame {
+  animation: tile-pulse 700ms var(--ease-out);
+}
+@keyframes tile-pulse {
+  0% { box-shadow: 0 0 0 0 var(--accent); }
+  25% { box-shadow: 0 0 0 4px var(--accent); }
+  100% { box-shadow: 0 0 0 4px transparent; }
+}
+
+.tile__card {
+  position: absolute;
+  border-radius: var(--card-radius);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--tile-card-shadow);
+  transition:
+    background 200ms linear,
+    border-color 200ms linear,
+    box-shadow 200ms linear;
+}
+.tile__preview {
+  position: absolute;
+  left: 7px;
+  top: 7px;
+  width: 316px; /* PREVIEW_W */
+  height: 190px; /* PREVIEW_H */
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--tile-bg);
+  transition: background 200ms linear;
+}
+.tile__mini {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+.mini {
+  position: absolute;
+  overflow: hidden;
+  border-radius: var(--card-radius);
+  background: var(--card-bg);
+  box-shadow: var(--tile-card-shadow);
+}
+.mini--note {
+  background: var(--note-bg);
+}
+.mini--board {
+  background: var(--chip-bg);
+  border: 1px solid var(--card-border);
+}
+.mini__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.tile__empty {
+  position: absolute;
+  inset: 12px;
+  display: grid;
+  place-items: center;
+  border: 1.5px dotted color-mix(in srgb, var(--text-3) 50%, transparent);
+  border-radius: 8px;
+  color: var(--text-3);
+  font-size: 13px;
+}
+
+.tile__meta {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  top: 209px;
+  transition: opacity 200ms linear;
+}
+.tile__name,
+.tile__count {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.tile__name {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--text);
+}
+.tile__count {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-3);
+}
+.tile__rename {
+  display: block;
+  width: 100%;
+  height: 24px;
+  margin: -2px 0;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--chip-bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* "..." button and its menu: outside the tile's button so interactive content never nests. */
+.tile__more {
+  position: absolute;
+  top: 22px;
+  right: 22px;
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--panel-bg);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(20, 18, 14, 0.12), 0 2px 8px rgba(20, 18, 14, 0.1);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.tile:hover .tile__more,
+.tile:focus-within .tile__more,
+.tile.is-menu .tile__more {
+  opacity: 1;
+}
+@media (hover: none) {
+  .tile__more { opacity: 1; }
+}
+.tile__more:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.tile__menu {
+  position: absolute;
+  top: 56px;
+  right: 22px;
+  z-index: 2;
+  min-width: 164px;
+  padding: 6px;
+  border-radius: 14px;
+  background: var(--panel-bg);
+  box-shadow: var(--panel-shadow);
+  animation: layer-fade-in var(--dur-fast) var(--ease-out);
+}
+.tile__menu-item {
+  display: block;
+  width: 100%;
+  height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  text-align: left;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+}
+.tile__menu-item:hover,
+.tile__menu-item:focus-visible {
+  background: var(--chip-bg);
+  outline: none;
+}
+.is-danger {
+  color: var(--danger);
+}
+.tile__confirm {
+  padding: 6px;
+}
+.tile__confirm-text {
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.tile__confirm-row {
+  display: flex;
+  gap: 6px;
+}
+.tile__confirm-btn {
+  flex: 1;
+  height: 32px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--chip-bg);
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+}
+.tile__confirm-btn:hover { background: var(--chip-bg-hover); }
+.tile__confirm-btn.is-danger {
+  background: var(--danger);
+  color: #fff;
+}
+.tile__confirm-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* "+ New board": a rectangle with an animated painted fill. The tile never moves; only the colour drifts inside it. */
+@property --pa { syntax: '<number>'; inherits: true; initial-value: 0; }
+@property --pb { syntax: '<number>'; inherits: true; initial-value: 0; }
+@keyframes paint-a { from { --pa: -1; } to { --pa: 1; } }
+@keyframes paint-b { from { --pb: 1; } to { --pb: -1; } }
+.tile--new .tile__frame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0;
+  overflow: hidden;
+  isolation: isolate;
+  background: #f1e6d8;
+  border: 1px solid rgba(42, 38, 34, 0.12);
+  box-shadow: var(--tile-card-shadow);
+  color: #2a2622;
+  font-size: 15px;
+  font-weight: 500;
+  animation: paint-a 9s ease-in-out infinite alternate, paint-b 13s ease-in-out infinite alternate;
+  transition: filter var(--dur-fast) var(--ease-out);
+}
+.tile--new .tile__frame::before,
+.tile--new .tile__frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+/* Animated fill: pastel lobes drift over a cream base, clipped to the tile */
+.tile--new .tile__frame::before {
+  background:
+    radial-gradient(62% 58% at calc(14% + var(--pa) * 14%) calc(18% + var(--pb) * 14%), #f6c6a8 0%, transparent 100%),
+    radial-gradient(58% 62% at calc(88% - var(--pa) * 14%) calc(14% + var(--pb) * 14%), #a9d6f5 0%, transparent 100%),
+    radial-gradient(60% 56% at calc(84% + var(--pb) * 12%) calc(88% - var(--pa) * 14%), #d9c8f0 0%, transparent 100%),
+    radial-gradient(64% 58% at calc(12% - var(--pb) * 12%) calc(86% + var(--pa) * 12%), #bfe3c8 0%, transparent 100%),
+    radial-gradient(40% 38% at calc(50% + var(--pa) * 14%) calc(48% - var(--pb) * 14%), #f3e3a0 0%, transparent 100%);
+}
+/* Film grain */
+.tile--new .tile__frame::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+  mix-blend-mode: multiply;
+  opacity: 0.4;
+}
+.tile--new .tile__frame > * {
+  position: relative;
+}
+.tile--new .tile__frame:hover {
+  filter: saturate(1.12) brightness(1.03);
+}
+.tile--new .tile__frame:active {
+  filter: saturate(1.15) brightness(0.98);
+}
+.tile--new .tile__frame:focus-visible {
+  box-shadow: var(--tile-card-shadow), var(--focus-ring);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tile--new .tile__frame { animation: none; }
+}
+
+/* ---------- Entering / leaving a board: the focused tile keeps only its preview ---------- */
+.overview-layer.is-focusing {
+  pointer-events: none;
+}
+.overview-layer.is-focusing .tile:not(.is-focus) {
+  opacity: 0;
+}
+.overview-layer.is-focusing .tile.is-focus .tile__frame {
+  background: transparent;
+  border-color: transparent;
+}
+.overview-layer.is-focusing .tile.is-focus .tile__card {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+.overview-layer.is-focusing .tile.is-focus .tile__preview {
+  background: transparent;
+}
+.overview-layer.is-focusing .tile.is-focus .tile__meta,
+.overview-layer.is-focusing .tile.is-focus .tile__more {
+  opacity: 0;
+}
+.overview-layer.is-focusing .tile.is-focus .tile__mini .mini {
+  box-shadow: none;
+}
+
+/* ---------- Bottom board bar (solid, not glass) ---------- */
+.board-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 20px;
+  translate: -50% 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 32px);
+  height: 48px;
+  padding: 0 20px 0 6px;
+  border-radius: 9999px;
+  background: var(--panel-bg);
+  box-shadow: 0 1px 2px rgba(20, 18, 14, 0.06), 0 8px 24px rgba(20, 18, 14, 0.1);
+  color: var(--text);
+  animation: board-bar-in 220ms var(--ease-out) both;
+}
+.board-bar[data-state='closed'] {
+  animation: board-bar-out 160ms var(--ease-out) forwards;
+}
+@keyframes board-bar-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes board-bar-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(8px); }
+}
+.board-bar__back {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px 0 10px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--chip-bg);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.board-bar__back:hover { background: var(--chip-bg-hover); }
+.board-bar__divider {
+  flex: none;
+  width: 1px;
+  height: 20px;
+  background: var(--chip-bg-hover);
+}
+.board-bar__name {
+  min-width: 0;
+  max-width: 24ch;
+  height: 32px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: text;
+}
+.board-bar__name:hover { background: var(--chip-bg); }
+.board-bar__rename {
+  width: 20ch;
+  max-width: 100%;
+  height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--chip-bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.board-bar__count {
+  flex: none;
+  margin-left: -4px;
+  font-size: 15px;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.board-bar__back:focus-visible,
+.board-bar__name:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+@media (max-width: 640px) {
+  .board-bar__count { display: none; }
+  .board-bar { padding-right: 10px; }
+}
+
+/* ---------- Toast ---------- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--canvas-inset) + 20px);
+  translate: -50% 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: calc(100% - 32px);
+  height: 44px;
+  padding: 0 8px 0 18px;
+  border-radius: 9999px;
+  background: var(--panel-bg);
+  box-shadow: 0 1px 2px rgba(20, 18, 14, 0.06), 0 8px 24px rgba(20, 18, 14, 0.14);
+  color: var(--text);
+  font-size: 14px;
+  animation: board-bar-in 220ms var(--ease-out) both;
+}
+.toast__text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.toast__action {
+  flex: none;
+  height: 30px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--chip-bg);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+}
+.toast__action:hover { background: var(--chip-bg-hover); }
+.toast__action:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .tile { --tile-card-shadow: var(--card-shadow); --danger: #ff7a6e; }
+  :root:not([data-theme='light']) .board-bar,
+  :root:not([data-theme='light']) .toast { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.4); }
+}
+:root[data-theme='dark'] .tile { --tile-card-shadow: var(--card-shadow); --danger: #ff7a6e; }
+:root[data-theme='dark'] .board-bar,
+:root[data-theme='dark'] .toast { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.4); }
+
+@media (prefers-reduced-motion: reduce) {
+  .tile,
+  .tile__frame,
+  .tile__card,
+  .tile__preview,
+  .tile__meta {
+    transition-duration: 120ms;
+  }
+  .tile.is-pulse .tile__frame { animation: none; box-shadow: 0 0 0 3px var(--accent); }
+  .board-bar,
+  .toast,
+  .tile__menu { animation: layer-fade-in 120ms linear both; }
+  .board-bar[data-state='closed'] { animation: layer-fade-out 120ms linear forwards; }
+}

@@ -1,0 +1,572 @@
+/* ---------- Frame ---------- */
+.canvas-frame {
+  position: fixed;
+  inset: 0;
+  background: var(--canvas-bg);
+  overflow: hidden;
+  isolation: isolate;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: box-shadow var(--dur) var(--ease-out);
+}
+.canvas-frame.is-drop {
+  box-shadow:
+    inset 0 0 0 1.5px var(--accent),
+    inset 0 0 40px var(--accent-soft);
+}
+.canvas-frame.is-busy {
+  pointer-events: none;
+}
+.canvas-frame.is-covered {
+  visibility: hidden;
+}
+.canvas-frame.is-space,
+.canvas-frame.is-space * {
+  cursor: grab;
+}
+.canvas-frame.is-panning,
+.canvas-frame.is-panning * {
+  cursor: grabbing;
+}
+
+.canvas-world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.canvas-chrome {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+.canvas-chrome > * {
+  pointer-events: auto;
+}
+
+/* ---------- Blocks ---------- */
+.block {
+  --block-card-shadow: 0 1px 2px rgba(20, 18, 14, 0.05), 0 4px 14px rgba(20, 18, 14, 0.05);
+  position: absolute;
+  cursor: grab;
+  outline: none;
+  scale: 1;
+  transition:
+    scale var(--dur) var(--ease-out),
+    opacity 240ms var(--ease-out);
+}
+/* Keep on board: kept results glide (left/top) into free space beside the board. */
+.canvas-world.is-settling .block:not(.is-dimmed) {
+  transition:
+    left 420ms var(--ease-out),
+    top 420ms var(--ease-out),
+    scale var(--dur) var(--ease-out),
+    opacity 240ms var(--ease-out);
+}
+@media (prefers-reduced-motion: reduce) {
+  .canvas-world.is-settling .block:not(.is-dimmed) { transition: opacity 120ms linear; }
+}
+/* Search view covers the board: ghost it and let clicks fall through to the canvas. */
+.block.is-dimmed {
+  opacity: 0.08;
+  scale: 0.98;
+  pointer-events: none;
+}
+/* Result blocks. Transform + opacity only; left/top stay free for dragging. */
+.block[data-phase='enter'] {
+  animation: block-in 420ms var(--ease-out) var(--delay, 0ms) backwards;
+}
+.block[data-phase='exit'] {
+  pointer-events: none;
+  animation: block-out 180ms var(--ease-out) var(--delay, 0ms) forwards;
+}
+@keyframes block-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.92); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes block-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: scale(0.96); }
+}
+@keyframes block-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes block-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+/* Far out: cards are a few dozen px, so drop the shadow (the image fades out in Block.tsx). */
+.block.is-lod .block__card {
+  box-shadow: none;
+}
+.block.is-lifted {
+  scale: 1.015;
+  cursor: grabbing;
+}
+.block.is-selected .block__card {
+  outline: 1.5px solid var(--accent);
+  outline-offset: 2px;
+}
+.block:focus-visible .block__card {
+  box-shadow: var(--focus-ring);
+}
+
+.block__card {
+  position: absolute;
+  inset: var(--frame-pad); /* the block keeps the padding the Surface Field clears around the card */
+  overflow: hidden;
+  border-radius: var(--card-radius);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--block-card-shadow);
+  transition: box-shadow var(--dur) var(--ease-out);
+}
+.block--note .block__card {
+  background: var(--note-bg);
+}
+.block.is-lifted .block__card {
+  box-shadow: var(--card-shadow-lift);
+}
+
+.block__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease-out);
+  pointer-events: none;
+}
+.block__img.is-loaded {
+  opacity: 1;
+}
+
+.block__caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 28px 12px 10px;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.3;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0));
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease-out);
+  pointer-events: none;
+}
+.block__caption-title {
+  font-weight: 500;
+}
+.block__caption-source {
+  opacity: 0.75;
+  font-size: 11px;
+}
+.block:hover .block__caption,
+.block:focus-visible .block__caption,
+.block.is-selected .block__caption {
+  opacity: 1;
+}
+
+.block__note {
+  padding: 14px 16px;
+  height: 100%;
+  overflow: hidden;
+}
+.block__note-title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 6px;
+}
+.block__note-body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.block__link {
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px;
+  height: 100%;
+  overflow: hidden;
+}
+.block--link .block__link {
+  padding-right: 46px; /* clear of the visit pill */
+}
+.block__link-icon {
+  flex: none;
+  margin-top: 2px;
+  color: var(--text-3);
+}
+.block__link-text {
+  min-width: 0;
+}
+.block__link-title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.block__link-source {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-bottom: 4px;
+}
+.block__link-desc {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-2);
+}
+
+/* Visit pill on link cards; same look as the library's source-link pill. */
+.block__visit {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: #fff;
+  color: #1c1a17;
+  box-shadow: 0 1px 3px rgba(20, 18, 14, 0.18), 0 4px 12px rgba(20, 18, 14, 0.1);
+  text-decoration: none;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+.block:hover .block__visit,
+.block:focus-within .block__visit {
+  opacity: 1;
+  pointer-events: auto;
+}
+.block__visit:active {
+  transform: scale(0.96);
+}
+.block__visit:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+@media (hover: none) {
+  .block__visit {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* Sub-board card: a stacked sheet peeks out below, a live preview above a name footer. */
+.block__stack {
+  position: absolute;
+  top: calc(var(--frame-pad) + 6px);
+  bottom: calc(var(--frame-pad) - 6px);
+  left: calc(var(--frame-pad) + 8px);
+  right: calc(var(--frame-pad) + 8px);
+  border-radius: var(--card-radius);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--block-card-shadow);
+  opacity: 0.7;
+}
+.block__board-preview {
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  right: 6px;
+  bottom: 40px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--tile-bg);
+}
+.block__board-box {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 316px; /* PREVIEW_W */
+  height: 190px; /* PREVIEW_H */
+}
+.block__board-meta {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.3;
+}
+.block__board-icon {
+  flex: none;
+  color: var(--text-3);
+}
+.block__board-name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 600;
+  color: var(--text);
+}
+.block__board-count {
+  flex: none;
+  color: var(--text-3);
+}
+/* A selection dragged over a folder lifts it and rings it; on release it takes the items in with a short pulse. */
+.block--board .block__card {
+  transition: box-shadow var(--dur) var(--ease-out), scale 180ms var(--ease-out), outline-color 120ms linear;
+}
+.block--board.is-drop-over .block__card {
+  scale: 1.04;
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.block--board.is-drop-received .block__card {
+  animation: folder-receive 450ms var(--ease-out);
+}
+@keyframes folder-receive {
+  from { scale: 1.08; box-shadow: 0 0 0 6px var(--accent-soft); }
+  to { scale: 1; box-shadow: 0 0 0 0 transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .block--board.is-drop-over .block__card { scale: 1; }
+  .block--board.is-drop-received .block__card { animation: none; }
+}
+
+/* Corner handles sit on the card's corners; the transparent border widens the hit area. */
+.block__handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  box-sizing: content-box;
+  border: 4px solid transparent;
+  background: #fff padding-box;
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+  border-radius: 9px;
+  translate: -50% -50%;
+}
+.block__handle--tl { left: var(--frame-pad); top: var(--frame-pad); cursor: nwse-resize; }
+.block__handle--tr { left: calc(100% - var(--frame-pad)); top: var(--frame-pad); cursor: nesw-resize; }
+.block__handle--bl { left: var(--frame-pad); top: calc(100% - var(--frame-pad)); cursor: nesw-resize; }
+.block__handle--br { left: calc(100% - var(--frame-pad)); top: calc(100% - var(--frame-pad)); cursor: nwse-resize; }
+
+/* Drag on empty canvas: selection box in frame px. */
+.marquee {
+  position: absolute;
+  z-index: 1;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+/* ---------- Floating chrome (glass comes from .glass) ---------- */
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.icon-btn:hover {
+  background: var(--chip-bg-hover);
+}
+.icon-btn:active {
+  background: var(--chip-bg);
+}
+.icon-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.selection-menu {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 12px;
+  animation: chrome-in var(--dur) var(--ease-out);
+  /* Floats over cards, so text behind must not bleed through. */
+  background: color-mix(in srgb, var(--card-bg) 90%, transparent);
+}
+
+
+/* ---------- Search results bar (solid, not glass) ---------- */
+.results-bar {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  translate: -50% 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100% - 32px);
+  height: 48px;
+  padding: 0 6px 0 18px;
+  border-radius: 9999px;
+  background: var(--panel-bg);
+  box-shadow:
+    0 1px 2px rgba(20, 18, 14, 0.06),
+    0 8px 24px rgba(20, 18, 14, 0.1);
+  color: var(--text);
+  animation: results-bar-in 220ms var(--ease-out) both;
+}
+.results-bar[data-state='closed'] {
+  animation: results-bar-out 160ms var(--ease-out) forwards;
+}
+@keyframes results-bar-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes results-bar-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(-8px); }
+}
+.results-bar__icon {
+  flex: none;
+  color: var(--text-3);
+}
+.results-bar__text {
+  min-width: 0;
+  font-size: 15px;
+  white-space: nowrap;
+}
+.results-bar__text b {
+  font-weight: 600;
+}
+.results-bar__label {
+  display: inline-block;
+  max-width: 28ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+}
+.results-bar__divider {
+  flex: none;
+  width: 1px;
+  height: 20px;
+  background: var(--chip-bg-hover);
+}
+.results-bar__keep,
+.results-bar__done {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  height: 36px;
+  border: 0;
+  border-radius: 9999px;
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    opacity var(--dur-fast) var(--ease-out);
+}
+.results-bar__keep {
+  padding: 0 16px;
+  background: var(--chip-active-bg);
+  color: var(--chip-active-text);
+  font-weight: 500;
+}
+.results-bar__keep:hover { opacity: 0.88; }
+.results-bar__done {
+  width: 36px;
+  padding: 0;
+  background: var(--chip-bg);
+  color: var(--text);
+}
+.results-bar__done:hover { background: var(--chip-bg-hover); }
+.results-bar__keep:focus-visible,
+.results-bar__done:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .results-bar {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.4);
+  }
+}
+:root[data-theme='dark'] .results-bar {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+@keyframes chrome-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .block,
+  .block__card,
+  .block__img,
+  .block__caption,
+  .block__visit,
+  .canvas-frame {
+    transition: none;
+  }
+  .block.is-lifted {
+    scale: 1;
+  }
+  .selection-menu {
+    animation: none;
+  }
+  /* Reduced motion: opacity only, no stagger, no scale or translate. */
+  .block {
+    transition: opacity 120ms linear;
+  }
+  .block.is-dimmed {
+    scale: 1;
+  }
+  .block[data-phase='enter'] {
+    animation: block-fade-in 120ms linear 0ms backwards;
+  }
+  .block[data-phase='exit'] {
+    animation: block-fade-out 120ms linear 0ms forwards;
+  }
+  .results-bar {
+    animation: block-fade-in 120ms linear both;
+  }
+  .results-bar[data-state='closed'] {
+    animation: block-fade-out 120ms linear forwards;
+  }
+}
+
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .block {
+    --block-card-shadow: var(--card-shadow);
+  }
+}
+:root[data-theme='dark'] .block {
+  --block-card-shadow: var(--card-shadow);
+}
