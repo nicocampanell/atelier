@@ -150,9 +150,9 @@ function createMenus() {
 /** Signed out: the toolbar opens the popup (sign-in). Signed in: one click saves the page. */
 async function applyToolbar() {
   if (!browser.action) return;
-  const { token } = await getSettings();
-  await browser.action.setPopup({ popup: token ? "" : "popup.html" }).catch(() => {});
-  await browser.action.setTitle({ title: token ? "Save to Atelier" : "Sign in to Atelier" }).catch(() => {});
+  const { accessToken } = await getSettings();
+  await browser.action.setPopup({ popup: accessToken ? "" : "popup.html" }).catch(() => {});
+  await browser.action.setTitle({ title: accessToken ? "Save to Atelier" : "Sign in to Atelier" }).catch(() => {});
 }
 
 export default defineBackground(() => {

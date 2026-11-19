@@ -50,7 +50,7 @@ export type SourceId = "pinterest" | "arena" | "twitter" | "instagram";
  *  ready      → Save.status "ready"
  *  failed     → server or network refused; `message` is human-readable; retryable when `retry` is true
  *  duplicate  → saved, but Save.duplicateOf was set (still a success)
- *  signed-out → no token configured; nothing was sent
+ *  signed-out → no access token; nothing was sent
  */
 export type CaptureState =
   | { state: "sending"; captureId: string }
@@ -93,17 +93,21 @@ export interface HookEvent {
   dedupeKey: string;
 }
 
-/** Persisted in browser.storage.local under "atelier.settings". Token is never logged or sent to content scripts. */
+/** Persisted in browser.storage.local under "atelier.settings". Tokens are never logged or sent to content scripts. */
 export interface ExtensionSettings {
   /** e.g. "http://localhost:3000" — no trailing slash. */
   serverUrl: string;
-  token: string | null;
+  accessToken: string | null;
+  refreshToken: string | null;
+  email: string | null;
   /** Project new captures go to; null = library only (no placement). */
   projectId: string | null;
   /** Per-source hook toggles; default all true. */
   hooks: Record<SourceId, boolean>;
 }
 
-export const DEFAULT_SERVER_URL = "http://localhost:3000";
+/** Local default. Production builds: set `WXT_API_URL` (e.g. https://atelier-api.<account>.workers.dev). */
+export const DEFAULT_SERVER_URL =
+  (import.meta.env.WXT_API_URL as string | undefined)?.replace(/\/+$/, "") || "http://localhost:3000";
 export const SETTINGS_KEY = "atelier.settings";
 export const HOOK_CHANNEL = "atelier.hook.v1";

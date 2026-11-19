@@ -5,6 +5,7 @@ import { resetPipelineForTests, retryCapture, startCapture, timing } from "../ut
 import { apiFetch } from "../utils/api";
 
 const TOKEN = "secret-test-token";
+const REFRESH = "secret-refresh-token";
 const page = (extra: Partial<CaptureMessage> = {}): CaptureMessage => ({
   type: "atelier.capture",
   request: { kind: "page", url: "https://example.com/", title: "Example" },
@@ -35,7 +36,15 @@ function mockFetch(handler: (url: string, init: RequestInit) => Response | Promi
 
 async function setSettings(over: Record<string, unknown> = {}) {
   await fakeBrowser.storage.local.set({
-    [SETTINGS_KEY]: { serverUrl: "http://localhost:3000", token: TOKEN, projectId: "p1", hooks: { pinterest: true, arena: true, twitter: true, instagram: true }, ...over },
+    [SETTINGS_KEY]: {
+      serverUrl: "http://localhost:3000",
+      accessToken: TOKEN,
+      refreshToken: REFRESH,
+      email: "owner@example.com",
+      projectId: "p1",
+      hooks: { pinterest: true, arena: true, twitter: true, instagram: true },
+      ...over,
+    },
   });
 }
 
@@ -107,7 +116,7 @@ describe("capture state machine", () => {
   });
 
   it("signed out sends nothing", async () => {
-    await setSettings({ token: null });
+    await setSettings({ accessToken: null, refreshToken: null });
     mockFetch(() => env({}));
     const { states } = await run(page());
     expect(states.map((s) => s.state)).toEqual(["signed-out"]);
@@ -197,8 +206,38 @@ describe("capture state machine", () => {
 describe("api client", () => {
   it("returns the envelope and error classes", async () => {
     mockFetch(() => errEnv("unauthorized", "Bad token", 401));
-    const r = await apiFetch({ serverUrl: "http://x/", token: "t" }, "/api/projects");
+    const r = await apiFetch({ serverUrl: "http://x/", accessToken: "t", refreshToken: null }, "/api/projects");
     expect(r).toMatchObject({ ok: false, error: { status: 401, retry: false, message: "Bad token" } });
     expect((calls[0]!.init.headers as Record<string, string>).authorization).toBe("Bearer t");
+  });
+
+  it("refreshes once on 401 then retries", async () => {
+    vi.resetModules();
+    vi.doMock("../utils/supabase", () => ({
+      supabase: {
+        auth: {
+          refreshSession: vi.fn(async () => ({
+            data: { session: { access_token: "new-access", refresh_token: "new-refresh" } },
+            error: null,
+          })),
+        },
+      },
+    }));
+    const { apiFetch: fetchWithRefresh } = await import("../utils/api");
+    let n = 0;
+    mockFetch(() => {
+      n += 1;
+      if (n === 1) return errEnv("unauthorized", "expired", 401);
+      return env({ projects: [] });
+    });
+    await setSettings({ accessToken: "old", refreshToken: "r1" });
+    const r = await fetchWithRefresh(
+      { serverUrl: "http://localhost:3000", accessToken: "old", refreshToken: "r1" },
+      "/api/projects",
+    );
+    expect(r.ok).toBe(true);
+    expect(calls).toHaveLength(2);
+    expect((calls[1]!.init.headers as Record<string, string>).authorization).toBe("Bearer new-access");
+    vi.doUnmock("../utils/supabase");
   });
 });

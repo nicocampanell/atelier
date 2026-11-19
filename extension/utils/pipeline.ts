@@ -81,7 +81,7 @@ export async function startCapture(
     recent.set(msg.dedupeKey, now);
   }
   const captureId = newId();
-  if (!settings.token) {
+  if (!settings.accessToken) {
     return { reply: { state: "signed-out", captureId }, done: Promise.resolve() };
   }
   const seed = msg.dedupeKey ? msg.dedupeKey.slice(0, 120) + ":" : "";
@@ -173,7 +173,7 @@ async function send(settings: ExtensionSettings, p: Pending): Promise<Envelope<S
 
 async function run(p: Pending, emit: Emit): Promise<void> {
   const settings = await getSettings();
-  if (!settings.token) {
+  if (!settings.accessToken) {
     emit({ state: "signed-out", captureId: p.captureId }, p.ctx);
     return;
   }

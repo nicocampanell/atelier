@@ -9,8 +9,23 @@ import { defineConfig } from "wxt";
 //   ATELIER_EXT_TEST=1         exposes a test hook in the service worker and grants <all_urls> (test build only) so
 //                              headless Playwright can capture without a user gesture (activeTab)
 //   ATELIER_EXT_OUTDIR         separate output directory for that build
+//
+// Auth / API build env (public anon only — see extension/.env.example):
+//   WXT_SUPABASE_URL, WXT_SUPABASE_ANON_KEY
+//   WXT_API_URL                optional production Workers origin; baked into DEFAULT_SERVER_URL
+// After deploy, either set WXT_API_URL at build time or ask the user to add the
+// production origin under optional_host_permissions at sign-in (already supported).
 const testMode = process.env.ATELIER_EXT_TEST === "1";
 const extraOrigin = process.env.ATELIER_EXT_SERVER_ORIGIN;
+function apiHostPermission(): string[] {
+  const raw = process.env.WXT_API_URL?.trim();
+  if (!raw) return [];
+  try {
+    return [`${new URL(raw).origin}/*`];
+  } catch {
+    return [];
+  }
+}
 
 export default defineConfig({
   modules: ["@wxt-dev/module-react"],
@@ -24,6 +39,7 @@ export default defineConfig({
     permissions: ["storage", "activeTab", "contextMenus", "scripting"],
     host_permissions: [
       "http://localhost:3000/*",
+      ...apiHostPermission(),
       // Hook sites: same sites the hook content scripts already run on. Lets the background inject
       // the overlay toast when a site-hook capture arrives without a user gesture (no activeTab).
       "https://*.pinterest.com/*",
@@ -37,7 +53,7 @@ export default defineConfig({
       ...(extraOrigin ? [`${extraOrigin}/*`] : []),
       ...(testMode ? ["<all_urls>"] : []),
     ],
-    // Custom server origins are requested at sign-in.
+    // Custom / production server origins are requested at sign-in when not baked above.
     optional_host_permissions: ["http://*/*", "https://*/*"],
     action: { default_title: "Save to Atelier" },
     commands: {

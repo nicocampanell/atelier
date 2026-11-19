@@ -3,11 +3,19 @@ import type { Project } from "../../../lib/types";
 import { DEFAULT_SERVER_URL } from "../../lib/contracts";
 import { apiFetch } from "../../utils/api";
 import { normalizeServerUrl, setSettings } from "../../utils/settings";
+import { supabase } from "../../utils/supabase";
 
-/** Validates the token with GET /api/projects; stores nothing unless it works. */
-export async function signIn(serverInput: string, token: string): Promise<{ ok: true; projects: Project[] } | { ok: false; message: string }> {
+/** Email/password via Supabase; stores JWT pair only after GET /api/projects succeeds. */
+export async function signIn(
+  serverInput: string,
+  email: string,
+  password: string,
+): Promise<{ ok: true; projects: Project[] } | { ok: false; message: string }> {
+  if (!supabase) {
+    return { ok: false, message: "Missing WXT_SUPABASE_URL / WXT_SUPABASE_ANON_KEY — rebuild with those set." };
+  }
   const serverUrl = normalizeServerUrl(serverInput || DEFAULT_SERVER_URL);
-  const trimmed = token.trim();
+  const trimmedEmail = email.trim();
   let origin: string;
   try {
     const u = new URL(serverUrl);
@@ -16,15 +24,34 @@ export async function signIn(serverInput: string, token: string): Promise<{ ok: 
   } catch {
     return { ok: false, message: "Enter a valid server URL, e.g. http://localhost:3000." };
   }
-  if (!trimmed) return { ok: false, message: "Paste your access token." };
+  if (!trimmedEmail || !password) return { ok: false, message: "Enter email and password." };
   if (origin !== new URL(DEFAULT_SERVER_URL).origin) {
     const granted = await browser.permissions.request({ origins: [`${origin}/*`] }).catch(() => false);
     if (!granted) return { ok: false, message: `Atelier needs permission to talk to ${new URL(origin).host}.` };
   }
-  const res = await apiFetch<{ projects: Project[] }>({ serverUrl, token: trimmed }, "/api/projects");
-  if (!res.ok) {
-    return { ok: false, message: res.error.status === 401 ? "That token was not accepted." : res.error.message };
+
+  const { data, error } = await supabase.auth.signInWithPassword({ email: trimmedEmail, password });
+  if (error || !data.session) {
+    return { ok: false, message: error?.message ?? "Sign-in failed." };
   }
-  await setSettings({ serverUrl, token: trimmed, projectId: res.data.projects[0]?.id ?? null });
+  const accessToken = data.session.access_token;
+  const refreshToken = data.session.refresh_token;
+  const res = await apiFetch<{ projects: Project[] }>(
+    { serverUrl, accessToken, refreshToken },
+    "/api/projects",
+  );
+  if (!res.ok) {
+    return {
+      ok: false,
+      message: res.error.status === 401 ? "Signed in, but the API rejected this account." : res.error.message,
+    };
+  }
+  await setSettings({
+    serverUrl,
+    accessToken,
+    refreshToken,
+    email: trimmedEmail,
+    projectId: res.data.projects[0]?.id ?? null,
+  });
   return { ok: true, projects: res.data.projects };
 }

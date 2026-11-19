@@ -12,6 +12,7 @@
     "postinstall": "wxt prepare"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.119.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },

@@ -20,7 +20,7 @@ export function App() {
   return (
     <main>
       <h1>Atelier</h1>
-      {settings.token ? (
+      {settings.accessToken ? (
         <SignedIn settings={settings} onChange={setLocal} />
       ) : (
         <SignIn onDone={() => void getSettings().then(setLocal)} initialServer={settings.serverUrl} />
@@ -31,7 +31,8 @@ export function App() {
 
 function SignIn({ onDone, initialServer }: { onDone: () => void; initialServer: string }) {
   const [server, setServer] = useState(initialServer);
-  const [token, setToken] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   return (
@@ -40,22 +41,44 @@ function SignIn({ onDone, initialServer }: { onDone: () => void; initialServer: 
         e.preventDefault();
         setBusy(true);
         setError(null);
-        const r = await signIn(server, token);
+        const r = await signIn(server, email, password);
         setBusy(false);
         if (r.ok) onDone();
         else setError(r.message);
       }}
     >
       <label>
-        Server
-        <input data-testid="server" value={server} onChange={(e) => setServer(e.target.value)} spellCheck={false} />
+        Email
+        <input
+          data-testid="email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          autoComplete="username"
+          spellCheck={false}
+          required
+        />
       </label>
       <label>
-        Access token
-        <input data-testid="token" type="password" value={token} onChange={(e) => setToken(e.target.value)} autoComplete="off" />
+        Password
+        <input
+          data-testid="password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="current-password"
+          required
+        />
       </label>
+      <details>
+        <summary>Server</summary>
+        <label>
+          URL
+          <input data-testid="server" value={server} onChange={(e) => setServer(e.target.value)} spellCheck={false} />
+        </label>
+      </details>
       {error && <p role="alert" className="error" data-testid="error">{error}</p>}
-      <button type="submit" disabled={busy} data-testid="signin">{busy ? "Checking…" : "Sign in"}</button>
+      <button type="submit" disabled={busy} data-testid="signin">{busy ? "Signing in…" : "Sign in"}</button>
     </form>
   );
 }
@@ -90,6 +113,7 @@ function SignedIn({ settings, onChange }: { settings: ExtensionSettings; onChang
 
   return (
     <>
+      {settings.email && <p className="quiet" data-testid="email-label">{settings.email}</p>}
       <section>
         <h2>Save to</h2>
         <div role="radiogroup" aria-label="Project" className="list">
@@ -119,7 +143,12 @@ function SignedIn({ settings, onChange }: { settings: ExtensionSettings; onChang
           </label>
         ))}
       </section>
-      <button type="button" className="quiet" data-testid="signout" onClick={() => void patch({ token: null, projectId: null })}>
+      <button
+        type="button"
+        className="quiet"
+        data-testid="signout"
+        onClick={() => void patch({ accessToken: null, refreshToken: null, email: null, projectId: null })}
+      >
         Sign out
       </button>
     </>
