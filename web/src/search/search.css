@@ -1,0 +1,508 @@
+/* Search bar: closed pill (in header flow) + open layer (fixed) + scrim. Tokens only. */
+
+/* ---------- Closed pill ---------- */
+.sr-pill {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(480px, calc(100vw - 32px));
+  height: 52px;
+  padding: 0 16px 0 20px;
+  border: 1px solid var(--pill-border);
+  border-radius: 9999px;
+  background: var(--search-bg);
+  color: var(--text-3);
+  font: inherit;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+.sr-pill:hover { background: var(--search-bg-hover); border-color: var(--pill-border-hover); }
+/* While the open layer is mounted it stands in for the pill (keeps its layout space). */
+.sr-pill[data-covered] { visibility: hidden; }
+.sr-pill:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.sr-icon { flex: none; color: var(--text-2); }
+.sr-pill-label {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  font-size: 16px;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sr-kbd {
+  flex: none;
+  font: inherit;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--chip-bg);
+  color: var(--text-3);
+}
+.sr-pill .sr-kbd { background: var(--search-bg-hover); }
+@media (max-width: 639px) {
+  /* Room for the nav links on the left and the 40px theme toggle on the right. */
+  .sr-pill { width: min(480px, calc(100vw - 240px)); }
+  .sr-pill-kbd { display: none; }
+}
+
+/* ---------- Motion model ----------
+   .sr-scrim and .sr-layer carry data-state="opening" | "open" | "closing".
+   "opening" is the start frame (pill width, transparent); SearchBar flips it to "open" after
+   a forced style flush, so every change is a plain CSS transition. Reversing mid-flight
+   (open <-> closing) therefore retargets from the current computed value with no jump.
+   --sr-pill-w is measured from the real pill by SearchBar and set on the layer. */
+.sr-scrim,
+.sr-layer {
+  --sr-ease-open: cubic-bezier(0.16, 1, 0.3, 1);
+  --sr-ease-close: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+/* ---------- Scrim ---------- */
+.sr-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  background: var(--scrim);
+  backdrop-filter: blur(var(--scrim-blur));
+  -webkit-backdrop-filter: blur(var(--scrim-blur));
+  opacity: 0;
+  transition: opacity 120ms ease-out; /* closing */
+}
+.sr-scrim[data-state='open'] {
+  opacity: 1;
+  transition-duration: 180ms; /* opening */
+}
+.sr-scrim[data-state='closing'] { pointer-events: none; }
+
+/* ---------- Layer (input + panel), centered on the same axis as the pill ---------- */
+.sr-layer {
+  --sr-full: min(720px, calc(100vw - 32px));
+  --sr-pill-w: 480px; /* overwritten inline with the measured pill width */
+  position: fixed;
+  z-index: 50;
+  top: calc((var(--header-h) - 52px) / 2);
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  width: var(--sr-full);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  max-height: calc(100dvh - (var(--header-h) - 52px) / 2 - 16px);
+  font-family: var(--font-sans);
+  color: var(--text);
+  pointer-events: none; /* only the bar and panel take clicks; the rest falls through to the scrim */
+}
+.sr-layer > * { pointer-events: auto; }
+.sr-layer[data-state='closing'] > * { pointer-events: none; }
+/* Drag finished its close animation but the dragged tile must stay mounted until dragend. */
+.sr-layer[data-landed] { visibility: hidden; }
+
+/* Bar: the pill's own width animates (cheap: one flex row, input just gets shorter). */
+.sr-field {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: var(--sr-pill-w);
+  height: 52px;
+  padding: 0 16px 0 20px; /* same insets as .sr-pill so the landing is exact */
+  border-radius: 9999px;
+  background: var(--search-bg);
+  box-shadow: 0 1px 2px transparent, 0 24px 64px transparent; /* same layer count as --panel-shadow */
+  transition:
+    width 200ms var(--sr-ease-close),
+    background-color 200ms var(--sr-ease-close),
+    box-shadow 200ms var(--sr-ease-close);
+}
+.sr-field .sr-kbd { transition: background-color 200ms var(--sr-ease-close); }
+.sr-layer[data-state='closing'] .sr-field .sr-kbd { background: var(--search-bg-hover); }
+.sr-layer[data-state='open'] .sr-field {
+  width: var(--sr-full);
+  background: var(--search-open-bg);
+  box-shadow: var(--panel-shadow);
+  transition:
+    width 400ms var(--sr-ease-open),
+    background-color 200ms ease-out,
+    box-shadow 200ms ease-out;
+}
+.sr-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-family: var(--font-sans);
+  font-size: 16px;
+}
+.sr-input::placeholder { color: var(--text-3); }
+.sr-icon-btn {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--chip-bg);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.sr-icon-btn:hover { background: var(--chip-bg-hover); }
+.sr-icon-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* ---------- Panel ---------- */
+/* Outer box animates its width and clips; the inner keeps the full width so the content never
+   reflows or squishes (it is simply revealed from the center outward). */
+.sr-panel {
+  flex: 0 1 auto;
+  min-height: 0;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+  width: var(--sr-pill-w);
+  opacity: 0;
+  border-radius: var(--panel-radius);
+  background: var(--panel-bg);
+  box-shadow: 0 1px 2px transparent, 0 24px 64px transparent;
+}
+.sr-panel-inner {
+  flex: none;
+  width: var(--sr-full);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding: 32px;
+}
+@media (max-width: 639px) {
+  .sr-panel-inner { padding: 24px 20px; gap: 28px; }
+}
+.sr-layer[data-state='open'] .sr-panel {
+  width: var(--sr-full);
+  opacity: 1;
+  box-shadow: var(--panel-shadow);
+  transition:
+    width 400ms var(--sr-ease-open),
+    opacity 100ms ease-out,
+    box-shadow 200ms ease-out;
+}
+.sr-layer[data-state='closing'] .sr-panel {
+  width: calc(var(--sr-full) * 0.85);
+  opacity: 0;
+  transition:
+    width 80ms cubic-bezier(0.4, 0, 1, 1),
+    opacity 80ms ease-out,
+    box-shadow 80ms ease-out;
+}
+
+/* Sections fade and rise in from the top down (25 ms stagger per section). Only the opening
+   state hides them, so closing never moves content. */
+.sr-section {
+  transition: opacity 160ms ease-out, transform 160ms ease-out;
+}
+.sr-layer[data-state='opening'] .sr-section { opacity: 0; transform: translateY(4px); }
+.sr-layer[data-state='open'] .sr-section:nth-child(2) { transition-delay: 25ms; }
+.sr-layer[data-state='open'] .sr-section:nth-child(3) { transition-delay: 50ms; }
+.sr-layer[data-state='open'] .sr-section:nth-child(n + 4) { transition-delay: 75ms; }
+
+/* Top-to-bottom clip reveal, 60-300 ms. This is an addition beyond the measured video (which
+   shows the panel at full height from frame 1). To drop it, set REVEAL_CLIP = false in
+   SearchBar.tsx, or delete this block. */
+.sr-reveal .sr-panel-inner { clip-path: inset(0 0 0 0 round var(--panel-radius)); }
+.sr-reveal[data-state='opening'] .sr-panel-inner {
+  clip-path: inset(0 0 calc(100% - 56px) 0 round var(--panel-radius));
+}
+.sr-reveal[data-state='open'] .sr-panel-inner {
+  transition: clip-path 240ms var(--ease-out) 60ms;
+}
+
+/* will-change only while animating; SearchBar toggles .is-animating around each phase change. */
+.sr-scrim.is-animating { will-change: opacity; }
+.sr-layer.is-animating .sr-panel { will-change: width, opacity; }
+.sr-layer.is-animating .sr-section { will-change: opacity, transform; }
+.sr-reveal.is-animating .sr-panel-inner { will-change: clip-path; }
+
+/* ---------- Reduced motion: instant open/close; scrim gets a short opacity fade only ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .sr-scrim,
+  .sr-scrim[data-state='open'] { transition: opacity 100ms linear; }
+  .sr-layer[data-state] .sr-field,
+  .sr-layer[data-state] .sr-field .sr-kbd,
+  .sr-layer[data-state] .sr-panel,
+  .sr-layer[data-state] .sr-section,
+  .sr-reveal[data-state] .sr-panel-inner { transition: none !important; }
+  .sr-layer[data-state] .sr-field {
+    width: var(--sr-full);
+    background: var(--search-open-bg);
+    box-shadow: var(--panel-shadow);
+  }
+  .sr-layer[data-state] .sr-panel {
+    width: var(--sr-full);
+    opacity: 1;
+    box-shadow: var(--panel-shadow);
+  }
+  .sr-layer[data-state] .sr-section { opacity: 1; transform: none; }
+  .sr-reveal[data-state] .sr-panel-inner { clip-path: none; }
+  .sr-layer[data-state='closing'] { visibility: hidden; }
+}
+
+.sr-section { min-width: 0; }
+.sr-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 24px;
+  margin-bottom: 16px;
+}
+.sr-label {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+.sr-text-btn {
+  padding: 2px 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.sr-text-btn:hover { color: var(--text); }
+.sr-text-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.sr-text-btn--primary { margin-left: auto; color: var(--text); font-weight: 500; }
+.sr-text-btn--primary:hover { color: var(--text); opacity: 0.7; }
+.sr-text-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* ---------- Chips ---------- */
+.sr-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sr-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  height: 44px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--chip-bg);
+  color: var(--text);
+  font: inherit;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+.sr-chip:hover { background: var(--chip-bg-hover); }
+.sr-chip:active { transform: scale(0.97); }
+.sr-chip:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.sr-chip-icon { color: var(--text-2); }
+.sr-tag { gap: 8px; }
+.sr-count {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-3);
+}
+.sr-tag[data-active] { background: var(--chip-active-bg); color: var(--chip-active-text); }
+.sr-tag[data-active] .sr-count { color: inherit; opacity: 0.6; }
+
+/* ---------- Horizontal scrollers (edge fade) ---------- */
+/* Bleed into the panel padding so content rests unfaded; fade only shows once scrolled. */
+.sr-scroller {
+  --fade: 32px;
+  display: flex;
+  gap: 16px;
+  margin-inline: -32px;
+  padding-inline: var(--fade);
+  scroll-padding-inline: var(--fade);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 var(--fade), #000 calc(100% - var(--fade)), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 var(--fade), #000 calc(100% - var(--fade)), transparent 100%);
+}
+.sr-scroller::-webkit-scrollbar { display: none; }
+@media (max-width: 639px) {
+  .sr-scroller { margin-inline: -20px; }
+}
+.sr-tags { gap: 12px; }
+.sr-row {
+  scroll-snap-type: x proximity;
+  padding-bottom: 2px;
+}
+
+/* ---------- Tiles ---------- */
+.sr-row .sr-tile { flex: none; width: 212px; scroll-snap-align: start; }
+.sr-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 20px 16px;
+}
+.sr-tile {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.sr-tile:active { cursor: grabbing; }
+/* Skip layout/paint of off-screen result tiles (1000+); `auto` remembers the real size once seen. */
+/* Not the active tile: its focus ring is drawn outside the tile box and paint containment would clip it. */
+.sr-grid .sr-tile:not([data-active]) { content-visibility: auto; contain-intrinsic-size: auto 200px; }
+.sr-media {
+  position: relative;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 20px;
+  background: var(--tile-bg);
+  transition: box-shadow var(--dur-fast) var(--ease-out);
+}
+.sr-tile[data-active] .sr-media { box-shadow: 0 0 0 2px var(--accent); }
+.sr-thumb {
+  display: block;
+  width: auto; /* width/height attrs only reserve the aspect ratio */
+  height: auto;
+  max-width: 70%;
+  max-height: 70%;
+  object-fit: contain;
+  border-radius: 12px;
+}
+.sr-card {
+  width: 74%;
+  max-height: 74%;
+  overflow: hidden;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--card-bg);
+  box-shadow: 0 0 0 1px var(--card-border);
+  text-align: left;
+}
+.sr-card-note { background: var(--note-bg); }
+.sr-card p { margin: 0; }
+.sr-card-title { font-size: 12px; font-weight: 600; line-height: 1.3; color: var(--text); }
+.sr-card-body {
+  margin-top: 4px !important;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sr-card-icon { margin-bottom: 6px; color: var(--text-3); }
+.sr-card-source { margin-top: 2px !important; font-size: 11px; color: var(--text-3); }
+.sr-meta-title {
+  transition: font-weight var(--dur-fast) var(--ease-out);
+  font-size: 16px;
+  line-height: 1.3;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Bold on hover. The title is nowrap in a fixed-width track, so the weight change cannot
+   reflow the grid; at worst the ellipsis point moves. */
+.sr-tile:hover .sr-meta-title { font-weight: 600; }
+
+/* Add to board */
+.sr-add {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 10px 0 8px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--search-open-bg);
+  color: var(--text);
+  font: inherit;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow: 0 1px 2px var(--glass-shadow), 0 0 0 1px var(--card-border);
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.96);
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+.sr-tile:hover .sr-add,
+.sr-tile[data-active] .sr-add,
+.sr-add:focus-visible {
+  opacity: 1;
+  transform: none;
+}
+.sr-add:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+@media (hover: none) {
+  .sr-add { opacity: 1; transform: none; }
+}
+
+/* ---------- Empty ---------- */
+.sr-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 0 8px;
+  text-align: center;
+}
+.sr-empty p { margin: 0; font-size: 16px; color: var(--text-2); }
+.sr-btn {
+  height: 44px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--chip-bg);
+  color: var(--text);
+  font: inherit;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.sr-btn:hover { background: var(--chip-bg-hover); }
+.sr-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* Placeholder for an image that is still being saved (no thumbnail yet). */
+.sr-thumb--ph { width: 70%; height: auto; max-height: 70%; }

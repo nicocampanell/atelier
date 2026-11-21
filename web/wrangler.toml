@@ -1,0 +1,4 @@
+# Cloudflare Pages project for the Vite canvas (static assets from `dist`).
+name = "atelier-canvas"
+compatibility_date = "2025-11-01"
+pages_build_output_dir = "dist"

@@ -31,7 +31,7 @@ You need Node 22+ and pnpm. Auth is a **Supabase JWT** for the single owner emai
 2. Apply the Supabase schema ([supabase/README.md](supabase/README.md)), then create an Auth user whose email matches `ATELIER_OWNER_EMAIL`.
 3. Copy `.env.example` → `.env.local` and fill `SUPABASE_*` + `ATELIER_OWNER_EMAIL`. For vinext/workerd locally, also copy `.dev.vars.example` → `.dev.vars`.
 4. Start the API: `pnpm dev` (http://localhost:3000) or `pnpm run dev:vinext` (port 3001).
-5. Canvas (separate worktree `infinite-canvas-frontend-4a2f39/web`): copy `web/.env.example` → `.env.local` (`VITE_SUPABASE_*`; leave `VITE_API_URL` unset so Vite proxies `/api`), then `npm run dev`.
+5. Canvas (`web/`): copy `web/.env.example` → `web/.env.local` (`VITE_SUPABASE_*`; leave `VITE_API_URL` unset so Vite proxies `/api`), then `cd web && npm install && npm run dev`.
 6. Extension: copy `extension/.env.example` → `extension/.env.local` (`WXT_SUPABASE_*`), then `pnpm --dir extension build`.
 7. Chrome → `chrome://extensions` → Developer mode → **Load unpacked** → `extension/.output/chrome-mv3`. Sign in with the owner email/password (Advanced → Server URL `http://localhost:3000` if needed).
 
@@ -41,7 +41,7 @@ You need Node 22+ and pnpm. Auth is a **Supabase JWT** for the single owner emai
 | --- | --- | --- |
 | Auth / DB / Storage | Supabase project | Migrations in `supabase/`; private bucket `atelier-assets` |
 | API | Cloudflare Workers (`atelier-api`) | [docs/deploy-cloudflare.md](docs/deploy-cloudflare.md) — `pnpm run deploy`, secrets via `cf`/`wrangler` |
-| Canvas | Cloudflare Pages (`atelier-canvas`) | Canvas worktree `web/docs/deploy-pages.md` — set `VITE_SUPABASE_*` + `VITE_API_URL` at **build** time |
+| Canvas | Cloudflare Pages (`atelier-canvas`) | [web/docs/deploy-pages.md](web/docs/deploy-pages.md) — set `VITE_SUPABASE_*` + `VITE_API_URL` at **build** time |
 | Extension | Sideload unpacked build | Set `WXT_SUPABASE_*` and `WXT_API_URL` (Workers origin) before `pnpm --dir extension build` |
 
 Worker secrets: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ATELIER_OWNER_EMAIL`, optional `TYPESAFE_API_KEY` / `CRON_SECRET` / `ATELIER_ALLOWED_ORIGINS` (include the Pages origin). Optional later: `ATELIER_OWNER_USER_ID` (Auth uuid, checked alongside email).
