@@ -1,0 +1,33 @@
+# Third-party notices
+
+## Pond
+
+Parts of `extension/` (capture pipeline, overlay, popup, site hooks) and the capture shapes in `lib/types.ts` are adapted from [Pond](https://github.com/raphaelsalaja/pond) at commit `deb305e`. Adapted files carry an `Adapted from Pond (MIT)` header.
+
+```
+MIT License
+
+Copyright (c) 2026 Raphael Salaja
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+## DigUp
+
+Search chunking and scoring ideas in `lib/search/` are re-implemented from [DigUp](https://github.com/ARahim3/DigUp) (MIT). No DigUp code is copied.

@@ -1,0 +1,9 @@
+# Local vinext/workerd secrets (copy to .dev.vars). Never commit .dev.vars.
+# Same names as cloudflare.config.ts bindings.secret() entries.
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+ATELIER_OWNER_EMAIL=you@example.com
+TYPESAFE_API_KEY=
+CRON_SECRET=
+ATELIER_ALLOWED_ORIGINS=http://localhost:5173

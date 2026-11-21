@@ -1,0 +1,39 @@
+{
+  "name": "atelier",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "dev:vinext": "vite dev --port 3001",
+    "build:vinext": "vite build",
+    "start:vinext": "vite preview",
+    "preview": "vite preview",
+    "deploy:vinext": "vinext-cloudflare deploy",
+    "deploy": "vinext-cloudflare deploy"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.119.1",
+    "@vinext/cloudflare": "^1.4.0",
+    "next": "^16.4.5",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-server-dom-webpack": "^19.3.1"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "2.0.0-rc.1",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "@vitejs/plugin-rsc": "^0.5.39",
+    "cf": "1.0.0-rc.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vinext": "^1.4.6",
+    "vite": "8.3.0"
+  },
+  "type": "module"
+}
