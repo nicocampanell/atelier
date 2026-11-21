@@ -23,7 +23,7 @@ export interface IndexableDoc {
 
 const MAX_CHUNKS = 200;
 const MAX_RESULTS = 50;
-const KEYWORD_ROW_LIMIT = 2000;
+const KEYWORD_ROW_LIMIT = 1000; // match PostgREST default max_rows
 const JEV_MIN = 0.5;
 
 async function safeEmbed(text: string): Promise<number[] | null> {

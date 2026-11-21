@@ -5,7 +5,8 @@ import { db, sbError } from "./db";
 import { ApiError } from "./http";
 import type { Board, BoardItem } from "./types";
 
-export const MAX_BOARD_ITEMS = 2000;
+// Cap at PostgREST default max_rows (1000); raise db-max-rows in Supabase to go higher.
+export const MAX_BOARD_ITEMS = 1000;
 const MAX_NOTE_CHARS = 20_000;
 const DEFAULT_CAMERA = { x: 0, y: 0, zoom: 1 };
 

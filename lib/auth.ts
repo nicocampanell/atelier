@@ -14,6 +14,8 @@ export async function authenticate(req: Request, getUser: GetUser = supabaseGetU
   if (error || !data.user?.id || !data.user.email) return null;
   const owner = process.env.ATELIER_OWNER_EMAIL?.trim().toLowerCase();
   if (!owner || data.user.email.toLowerCase() !== owner) return null;
+  const ownerId = process.env.ATELIER_OWNER_USER_ID?.trim();
+  if (ownerId && data.user.id !== ownerId) return null;
   return data.user.id;
 }
 

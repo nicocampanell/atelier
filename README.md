@@ -44,7 +44,14 @@ You need Node 22+ and pnpm. Auth is a **Supabase JWT** for the single owner emai
 | Canvas | Cloudflare Pages (`atelier-canvas`) | Canvas worktree `web/docs/deploy-pages.md` — set `VITE_SUPABASE_*` + `VITE_API_URL` at **build** time |
 | Extension | Sideload unpacked build | Set `WXT_SUPABASE_*` and `WXT_API_URL` (Workers origin) before `pnpm --dir extension build` |
 
-Worker secrets: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ATELIER_OWNER_EMAIL`, optional `TYPESAFE_API_KEY` / `CRON_SECRET` / `ATELIER_ALLOWED_ORIGINS` (include the Pages origin).
+Worker secrets: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ATELIER_OWNER_EMAIL`, optional `TYPESAFE_API_KEY` / `CRON_SECRET` / `ATELIER_ALLOWED_ORIGINS` (include the Pages origin). Optional later: `ATELIER_OWNER_USER_ID` (Auth uuid, checked alongside email).
+
+**Owner signup lockdown** (do this before sharing any URL):
+
+- Create the owner user in the Supabase Auth dashboard (email = `ATELIER_OWNER_EMAIL`).
+- Disable public signup (Authentication → Providers / settings).
+- Keep email confirmation enabled.
+- Optional later: set `ATELIER_OWNER_USER_ID` to that user’s uuid for a second lock.
 
 **Smoke checklist** (human; needs real Supabase + CF login):
 
@@ -65,9 +72,16 @@ A toast shows what really happened: **Sending**, then **Saved** (stored, still p
 
 ### Checks
 
-- `pnpm exec tsx scripts/verify-backend.ts`: the original backend checks.
-- `pnpm exec tsx scripts/verify-projects.ts`: projects, placement and idempotency.
-- `pnpm exec tsx scripts/verify-extension.ts`: a real Chrome run of the extension against a real server.
+JWT / Supabase hosting (current):
+
+- `pnpm exec tsx scripts/verify-auth-supabase.ts`: owner JWT auth (no network).
+- `pnpm exec tsx scripts/verify-db-supabase.ts`: live Supabase CRUD when env is set.
+
+Legacy (not valid for JWT hosting until rewritten — still assume shared `ATELIER_TOKEN` / local PGlite):
+
+- `pnpm exec tsx scripts/verify-backend.ts`
+- `pnpm exec tsx scripts/verify-projects.ts`
+- `pnpm exec tsx scripts/verify-extension.ts`
 
 The goal and check lists are in [docs/goals/](docs/goals/).
 

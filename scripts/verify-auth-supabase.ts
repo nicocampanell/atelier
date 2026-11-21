@@ -18,6 +18,11 @@ async function main() {
   assert.equal(await authenticate(req("jwt"), user("uuid-1", "owner@example.com")), "uuid-1");
   // Other user → null.
   assert.equal(await authenticate(req("jwt"), user("uuid-2", "evil@example.com")), null);
+  // Optional ATELIER_OWNER_USER_ID must match when set.
+  process.env.ATELIER_OWNER_USER_ID = "uuid-1";
+  assert.equal(await authenticate(req("jwt"), user("uuid-1", "owner@example.com")), "uuid-1");
+  assert.equal(await authenticate(req("jwt"), user("uuid-other", "owner@example.com")), null);
+  delete process.env.ATELIER_OWNER_USER_ID;
   // Supabase rejects the JWT → null.
   assert.equal(await authenticate(req("jwt"), async () => ({ data: { user: null }, error: new Error("bad") })), null);
   // No owner configured → null.
