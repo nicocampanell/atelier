@@ -29,6 +29,16 @@ export async function signIn(
     const granted = await browser.permissions.request({ origins: [`${origin}/*`] }).catch(() => false);
     if (!granted) return { ok: false, message: `Atelier needs permission to talk to ${new URL(origin).host}.` };
   }
+  // Bake covers WXT_SUPABASE_URL at build; request is a no-op when already granted.
+  try {
+    const supabaseOrigin = new URL(import.meta.env.WXT_SUPABASE_URL as string).origin;
+    if (supabaseOrigin !== new URL(DEFAULT_SERVER_URL).origin) {
+      const granted = await browser.permissions.request({ origins: [`${supabaseOrigin}/*`] }).catch(() => false);
+      if (!granted) return { ok: false, message: `Atelier needs permission to talk to ${new URL(supabaseOrigin).host}.` };
+    }
+  } catch {
+    return { ok: false, message: "Invalid WXT_SUPABASE_URL — rebuild with a valid Supabase project URL." };
+  }
 
   const { data, error } = await supabase.auth.signInWithPassword({ email: trimmedEmail, password });
   if (error || !data.session) {

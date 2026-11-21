@@ -11,14 +11,14 @@ import { defineConfig } from "wxt";
 //   ATELIER_EXT_OUTDIR         separate output directory for that build
 //
 // Auth / API build env (public anon only — see extension/.env.example):
-//   WXT_SUPABASE_URL, WXT_SUPABASE_ANON_KEY
-//   WXT_API_URL                optional production Workers origin; baked into DEFAULT_SERVER_URL
+//   WXT_SUPABASE_URL, WXT_SUPABASE_ANON_KEY  — URL origin also baked into host_permissions
+//   WXT_API_URL                optional production Workers origin; baked into DEFAULT_SERVER_URL + host_permissions
 // After deploy, either set WXT_API_URL at build time or ask the user to add the
 // production origin under optional_host_permissions at sign-in (already supported).
 const testMode = process.env.ATELIER_EXT_TEST === "1";
 const extraOrigin = process.env.ATELIER_EXT_SERVER_ORIGIN;
-function apiHostPermission(): string[] {
-  const raw = process.env.WXT_API_URL?.trim();
+function originHostPermission(envKey: string): string[] {
+  const raw = process.env[envKey]?.trim();
   if (!raw) return [];
   try {
     return [`${new URL(raw).origin}/*`];
@@ -26,6 +26,8 @@ function apiHostPermission(): string[] {
     return [];
   }
 }
+const apiHostPermission = () => originHostPermission("WXT_API_URL");
+const supabaseHostPermission = () => originHostPermission("WXT_SUPABASE_URL");
 
 export default defineConfig({
   modules: ["@wxt-dev/module-react"],
@@ -40,6 +42,7 @@ export default defineConfig({
     host_permissions: [
       "http://localhost:3000/*",
       ...apiHostPermission(),
+      ...supabaseHostPermission(),
       // Hook sites: same sites the hook content scripts already run on. Lets the background inject
       // the overlay toast when a site-hook capture arrives without a user gesture (no activeTab).
       "https://*.pinterest.com/*",
