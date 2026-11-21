@@ -25,18 +25,34 @@ Start with the first three documents. Write rough answers, leave blanks when nee
 
 ## Run it locally
 
-You need Node 22+ and pnpm.
+You need Node 22+ and pnpm. Auth is a **Supabase JWT** for the single owner email (`ATELIER_OWNER_EMAIL`) — there is no shared `ATELIER_TOKEN`.
 
 1. Install: `pnpm install` and `pnpm --dir extension install --ignore-workspace`.
-2. Copy `.env.example` to `.env.local` and fill Supabase + `ATELIER_OWNER_EMAIL` (see that file). Auth is a Supabase JWT for the owner email.
-3. Start the backend: `pnpm dev` (http://localhost:3000). For the Workers-shaped local stack: `pnpm run dev:vinext` (port 3001).
-4. Build the extension: `pnpm --dir extension build`.
-5. In Chrome, open `chrome://extensions`, turn on Developer mode, choose **Load unpacked** and pick `extension/.output/chrome-mv3`.
-6. Click the Atelier icon, enter the server URL (`http://localhost:3000`) and sign in with the owner email/password.
+2. Apply the Supabase schema ([supabase/README.md](supabase/README.md)), then create an Auth user whose email matches `ATELIER_OWNER_EMAIL`.
+3. Copy `.env.example` → `.env.local` and fill `SUPABASE_*` + `ATELIER_OWNER_EMAIL`. For vinext/workerd locally, also copy `.dev.vars.example` → `.dev.vars`.
+4. Start the API: `pnpm dev` (http://localhost:3000) or `pnpm run dev:vinext` (port 3001).
+5. Canvas (separate worktree `infinite-canvas-frontend-4a2f39/web`): copy `web/.env.example` → `.env.local` (`VITE_SUPABASE_*`; leave `VITE_API_URL` unset so Vite proxies `/api`), then `npm run dev`.
+6. Extension: copy `extension/.env.example` → `extension/.env.local` (`WXT_SUPABASE_*`), then `pnpm --dir extension build`.
+7. Chrome → `chrome://extensions` → Developer mode → **Load unpacked** → `extension/.output/chrome-mv3`. Sign in with the owner email/password (Advanced → Server URL `http://localhost:3000` if needed).
 
-### Deploy API to Cloudflare Workers
+### Hosted (Cloudflare + Supabase)
 
-See [docs/deploy-cloudflare.md](docs/deploy-cloudflare.md): vinext + `pnpm run deploy`, secrets via `cf`/`wrangler` (never commit values).
+| Piece | Where | Notes |
+| --- | --- | --- |
+| Auth / DB / Storage | Supabase project | Migrations in `supabase/`; private bucket `atelier-assets` |
+| API | Cloudflare Workers (`atelier-api`) | [docs/deploy-cloudflare.md](docs/deploy-cloudflare.md) — `pnpm run deploy`, secrets via `cf`/`wrangler` |
+| Canvas | Cloudflare Pages (`atelier-canvas`) | Canvas worktree `web/docs/deploy-pages.md` — set `VITE_SUPABASE_*` + `VITE_API_URL` at **build** time |
+| Extension | Sideload unpacked build | Set `WXT_SUPABASE_*` and `WXT_API_URL` (Workers origin) before `pnpm --dir extension build` |
+
+Worker secrets: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ATELIER_OWNER_EMAIL`, optional `TYPESAFE_API_KEY` / `CRON_SECRET` / `ATELIER_ALLOWED_ORIGINS` (include the Pages origin).
+
+**Smoke checklist** (human; needs real Supabase + CF login):
+
+1. Create owner user in Supabase Auth (email = `ATELIER_OWNER_EMAIL`).
+2. Deploy Workers + Pages; open canvas Pages URL → sign in → create/open a board.
+3. Sideload extension → sign in (same email/password) → save one page.
+4. Item appears on the board; search finds it (tags need `TYPESAFE_API_KEY`).
+5. A non-owner Auth user gets `401` on `/api/*`.
 
 ### Saving
 
