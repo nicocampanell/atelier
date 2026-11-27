@@ -78,9 +78,8 @@ export interface BoardsStore {
  * Hooks (src/state/boards.ts):
  *   export function useBoards(): BoardsStore
  *     Persisted to localStorage "atelier.boards.v1" (debounced, try/catch).
- *     Migrates the legacy single board "atelier.board.v1" into a board named "Moodboard" once.
- *     Seeds 4 boards when nothing is stored: "Moodboard" (existing SEED_LAYOUT),
- *     "Food" (f-* refs + n-food), "Interiors", "Color".
+ *     Migrates items from the legacy single board "atelier.board.v1" into "Moodboard".
+ *     Starts with an empty canvas when nothing is stored.
  *   export function useBoard(store: BoardsStore, boardId: string): Board
  *     Returns the existing `Board` interface from src/state/board.ts (items, selected, add, move,
  *     remove, duplicate, bringToFront, select, replace, append) bound to that board's items.

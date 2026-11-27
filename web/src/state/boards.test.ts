@@ -79,9 +79,9 @@ describe('seeds', () => {
 });
 
 describe('loadBoards', () => {
-  it('seeds when storage is empty or missing', () => {
-    expect(loadBoards(store({})).boards).toHaveLength(4);
-    expect(loadBoards(null).boards).toHaveLength(4);
+  it('starts empty when storage is empty or missing', () => {
+    expect(loadBoards(store({})).boards).toEqual([]);
+    expect(loadBoards(null).boards).toEqual([]);
   });
 
   it('round-trips a saved state', () => {
@@ -92,12 +92,11 @@ describe('loadBoards', () => {
     expect(loadBoards(store(data))).toEqual(s);
   });
 
-  it('migrates the legacy single board into Moodboard and keeps the other seeds', () => {
+  it('migrates the legacy single board into Moodboard', () => {
     const legacy = [item('a', 1, 2), { ...item('b', 3, 4), refId: 'nope' }];
     const s = loadBoards(store({ [LEGACY_STORAGE_KEY]: JSON.stringify(legacy) }));
-    expect(s.boards.map((b) => b.name)).toEqual(['Moodboard', 'Food', 'Interiors', 'Color']);
+    expect(s.boards.map((b) => b.name)).toEqual(['Moodboard']);
     expect(s.items[byName(s, 'Moodboard').id].map((i) => i.id)).toEqual(['a']);
-    expect(s.items[byName(s, 'Food').id].length).toBeGreaterThan(0);
   });
 
   it('prefers the new key over the legacy one', () => {
@@ -107,16 +106,16 @@ describe('loadBoards', () => {
     expect(loadBoards(store(data))).toEqual(cur);
   });
 
-  it('falls back to seeds on corrupt or fully invalid payloads', () => {
+  it('falls back to empty on corrupt or fully invalid payloads', () => {
     for (const raw of ['{not json', 'null', '42', '{"boards":"x"}', '{"boards":[{"id":"x"}],"items":{}}']) {
-      expect(loadBoards(store({ [BOARDS_STORAGE_KEY]: raw })).boards).toHaveLength(4);
+      expect(loadBoards(store({ [BOARDS_STORAGE_KEY]: raw })).boards).toEqual([]);
     }
     const throwing = {
       getItem: () => {
         throw new Error('denied');
       },
     };
-    expect(loadBoards(throwing).boards).toHaveLength(4);
+    expect(loadBoards(throwing).boards).toEqual([]);
   });
 
   it('drops invalid boards and items with unknown references', () => {
@@ -270,7 +269,7 @@ describe('useBoards / useBoard (jsdom)', () => {
     function Probe() {
       const s = useBoards();
       out.store = s;
-      out.board = useBoard(s, out.id || s.boards[0].id);
+      out.board = useBoard(s, out.id || s.boards[0]?.id || MAIN_ID);
       return null;
     }
     const root = createRoot(document.createElement('div'));
@@ -278,11 +277,12 @@ describe('useBoards / useBoard (jsdom)', () => {
     return { out, unmount: () => act(() => root.unmount()) };
   }
 
-  it('seeds, edits, selects and persists with a debounce', () => {
+  it('starts empty, edits, selects and persists with a debounce', () => {
     localStorage.clear();
     vi.useFakeTimers();
     const { out, unmount } = mount();
-    expect(out.store!.boards).toHaveLength(4);
+    expect(out.store!.boards).toEqual([]);
+    act(() => void out.store!.create('First board'));
 
     const first = out.store!.boards[0].id;
     const before = out.board!.items.length;
@@ -306,7 +306,7 @@ describe('useBoards / useBoard (jsdom)', () => {
     expect(localStorage.getItem(BOARDS_STORAGE_KEY)).toBeNull();
     act(() => vi.advanceTimersByTime(300));
     const saved = JSON.parse(localStorage.getItem(BOARDS_STORAGE_KEY)!);
-    expect(saved.boards).toHaveLength(5);
+    expect(saved.boards).toHaveLength(2);
 
     unmount();
     vi.useRealTimers();
@@ -415,6 +415,7 @@ describe('removeItemsOfRef / restoreItems', () => {
 
   it('works through the store', () => {
     localStorage.clear();
+    saveBoards(localStorage, seedBoards(1));
     vi.useFakeTimers();
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     const out: { store?: BoardsStore } = {};
@@ -639,7 +640,8 @@ describe('main area', () => {
       act(() => {
         refsInternal.add(mine);
         refsInternal.add(placed);
-        out.store!.addRef(out.store!.boards[0].id, placed.id); // placed by the add flow in the same tick
+        const boardId = out.store!.create('Mine');
+        out.store!.addRef(boardId, placed.id); // placed by the add flow in the same tick
       });
       act(() => void vi.advanceTimersByTime(10));
       expect(out.store!.itemsOf(MAIN_ID).map((i) => i.refId)).toEqual([mine.id]);

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { filterReferences } from './SearchBar';
+import { filterReferences as filter } from './SearchBar';
 import { REFERENCES } from '../data/references';
+
+const filterReferences = (query: string, tags: string[]) => filter(query, tags, REFERENCES);
 
 describe('filterReferences', () => {
   it('returns everything for an empty query', () => {

@@ -8,8 +8,8 @@ import type { Reference } from '../types';
 /* ------------------------------------------------------------------ */
 /*
  * Module-level singleton, reactive via useSyncExternalStore.
- * - Starts with the seed REFERENCES from src/data/references.ts, merged with user-added
- *   references whose METADATA hydrates ASYNCHRONOUSLY from IndexedDB (store "refs", one record
+ * - Lists saved references. Old sample cards remain resolvable by ID for existing boards.
+ *   Saved metadata hydrates asynchronously from IndexedDB (store "refs", one record
  *   per reference; localStorage "atelier.refs.v1" only as a fallback and one-time migration
  *   source). `refsReady` resolves when it is loaded; main.tsx renders the app after that so
  *   boards.ts validation on load can see user ref ids.

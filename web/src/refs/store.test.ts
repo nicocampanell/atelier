@@ -36,23 +36,22 @@ beforeEach(async () => {
 });
 
 describe('store basics', () => {
-  it('starts with the seeds', () => {
+  it('starts with an empty library and resolves old sample cards', () => {
     const s = refsStore.getSnapshot();
-    expect(s.list).toHaveLength(REFERENCES.length);
+    expect(s.list).toEqual([]);
     expect(refsStore.get('r-sofa')?.id).toBe('r-sofa');
     expect(refsStore.has('r-sofa')).toBe(true);
     expect(refsStore.has('nope')).toBe(false);
     expect(refsStore.has('constructor')).toBe(false);
   });
 
-  it('lists user refs newest first, ahead of demo seeds', () => {
+  it('lists only user refs, newest first', () => {
     const a = make({ title: 'a' });
     const b = make({ title: 'b' });
     refsInternal.add(a);
     refsInternal.add(b);
     const { list, byId } = refsStore.getSnapshot();
-    expect(list.slice(0, 2).map((r) => r.id)).toEqual([b.id, a.id]);
-    expect(list.slice(2).map((r) => r.id)).toEqual(REFERENCES.map((r) => r.id));
+    expect(list.map((r) => r.id)).toEqual([b.id, a.id]);
     expect(byId[a.id].title).toBe('a');
   });
 
@@ -222,7 +221,7 @@ describe('hydration', () => {
   it('survives corrupt JSON', async () => {
     localStorage.setItem(REFS_STORAGE_KEY, '{nope');
     await _resetForTests({ hydrate: true });
-    expect(refsStore.getSnapshot().list).toHaveLength(REFERENCES.length);
+    expect(refsStore.getSnapshot().list).toEqual([]);
   });
 
   it('turns "saving" into "failed" and says to upload again when no blob exists', async () => {

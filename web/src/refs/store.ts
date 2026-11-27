@@ -1,4 +1,4 @@
-// Reference store: seed references plus references the user added. Module-level singleton,
+// Reference store: saved references and lookup for old sample board cards. Module-level singleton,
 // reactive through useSyncExternalStore. Metadata persists per record to IndexedDB (localStorage
 // when IndexedDB is unavailable); image blobs live there too (see idb.ts). Startup creates object
 // URLs for thumbnails only; originals load on demand through ensureOriginal().
@@ -57,8 +57,9 @@ const seqs = new Map<string, number>();
 let maxSeq = 0;
 
 function build(): RefsSnapshot {
-  const list: Reference[] = [...users.filter((u) => !hidden.has(u.id)), ...REFERENCES];
+  const list = users.filter((u) => !hidden.has(u.id));
   const byId: Record<string, Reference> = Object.create(null);
+  for (const r of REFERENCES) byId[r.id] = r;
   for (const r of list) byId[r.id] = r;
   return { list, byId };
 }

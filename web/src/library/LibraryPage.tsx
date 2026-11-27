@@ -621,7 +621,12 @@ export function LibraryPage({
         </div>
       </div>
 
-      {results.length === 0 ? (
+      {list.length === 0 ? (
+        <div className="lib-empty">
+          <p>No saved references yet</p>
+          <p>Drop an image here or save a reference with the Atelier extension.</p>
+        </div>
+      ) : results.length === 0 ? (
         <div className="lib-empty">
           <p>Nothing matches these filters</p>
           <button type="button" className="lib-clear" onClick={clear}>

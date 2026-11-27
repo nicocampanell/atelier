@@ -231,28 +231,33 @@ type WritableStorage = Pick<Storage, 'setItem'>;
 
 /**
  * Reads the boards from storage. Order: current key, then the legacy single board
- * (becomes the "Moodboard"; the legacy key is left in place), then seeds.
+ * (becomes a "Moodboard" if it has items), then an empty canvas.
  */
 export function loadBoards(storage: ReadableStorage | null, now = Date.now()): BoardsState {
-  if (!storage) return seedBoards(now);
+  const empty: BoardsState = { boards: [], items: { [MAIN_ID]: [] }, lastOpenedId: null };
+  if (!storage) return empty;
   try {
     const raw = storage.getItem(BOARDS_STORAGE_KEY);
     if (raw !== null) {
-      return parseStored(JSON.parse(raw)) ?? seedBoards(now);
+      return parseStored(JSON.parse(raw)) ?? empty;
     }
   } catch {
-    return seedBoards(now);
+    return empty;
   }
   try {
     const legacy = storage.getItem(LEGACY_STORAGE_KEY);
     if (legacy !== null) {
       const parsed: unknown = JSON.parse(legacy);
-      if (Array.isArray(parsed)) return seedBoards(now, parsed.filter(isBoardItem));
+      const items = Array.isArray(parsed) ? parsed.filter(isBoardItem) : [];
+      if (items.length) {
+        const board = newMeta('Moodboard', tileSlot(0), now);
+        return { boards: [board], items: { ...empty.items, [board.id]: items }, lastOpenedId: null };
+      }
     }
   } catch {
     /* ignore a corrupt legacy value */
   }
-  return seedBoards(now);
+  return empty;
 }
 
 export function saveBoards(storage: WritableStorage | null, state: BoardsState): void {
