@@ -47,6 +47,7 @@
   "exclude": [
     "node_modules",
     "extension",
+    "mcp",
     "scripts/verify-backend.ts",
     "scripts/verify-projects.ts",
     "scripts/verify-extension.ts",

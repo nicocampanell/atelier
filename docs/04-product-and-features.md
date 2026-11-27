@@ -6,6 +6,8 @@ Status: Draft — no features committed.
 
 Capture a URL or file with minimal interruption; see it in an unsorted library immediately; search by words or meaning; open the matching source or specific passage; and place relevant references on a board with notes explaining the connection. A later agent integration can retrieve selected, authorized saves with citations. [Reference study](09-reference-research.md) distinguishes observed behavior from proposed behavior.
 
+The original pitch included an optional personal note at capture. The current direction prioritizes bringing references together and finding them again; capturing a note is optional and should never interrupt saving. Searching for a mood or aesthetic across different media is a desired outcome to validate.
+
 **Proposed first experiment:** an authenticated web library with URL and image upload, immediate durable capture, asynchronous metadata and search indexing, search with source previews, and a small manually curated board. Keep browser extension capture, automated source sync, agent actions, video/audio indexing, and automatic connection suggestions as follow-on experiments until their value and operating cost are understood. This is a suggested sequencing, not a commitment to exclude them from the vision.
 
 Save states must be truthful: saving → saved/processing → ready, or failed with a retry. A URL can be saved even if extraction fails; never claim that enrichment succeeded just because a request was accepted. Let users remove a save, retry processing, and see duplicates. Users should control any AI-proposed edits before they are applied.

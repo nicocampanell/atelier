@@ -1,0 +1,39 @@
+Preview suite exercised owner gate, byte and MIME agreement, errors and rejection of private preview with the real URL fetcher. Read owner filtering in lib/saves.ts and both authentication routes. Stdio fixture observed the authorization boundary. Loopback integration also asserted owner exclusion and a signed Storage GET without the owner bearer. Workers-specific DNS handling was not exercised in production.
+
+Supabase fixture password sign-in
+Atelier asset lookup carried user token
+Signed Storage request omitted user token
+Owner-scoped list filtered by MCP with exact source URL
+Atelier preview API carried user token
+Owner-scoped list filtered by MCP with exact source URL
+
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testcase name="the real safe fetch rejects a saved private-network preview" time="0.002503" classname="test" file="/Users/nicocampanell/Documents/altelier/app/api/saves/[id]/preview/route.integration.test.ts"/>
+	<testcase name="returns the owner's saved image with bounded retrieval and private headers" time="0.003219" classname="test" file="/Users/nicocampanell/Documents/altelier/app/api/saves/[id]/preview/route.test.ts"/>
+	<testcase name="does not fetch a preview without authorization or an owned save" time="0.000526" classname="test" file="/Users/nicocampanell/Documents/altelier/app/api/saves/[id]/preview/route.test.ts"/>
+	<testcase name="does not fetch missing or internal asset paths" time="0.000299" classname="test" file="/Users/nicocampanell/Documents/altelier/app/api/saves/[id]/preview/route.test.ts"/>
+	<testcase name="rejects mismatched and unsupported image bytes" time="0.000301" classname="test" file="/Users/nicocampanell/Documents/altelier/app/api/saves/[id]/preview/route.test.ts"/>
+	<testcase name="reports oversized previews and upstream failures" time="0.000327" classname="test" file="/Users/nicocampanell/Documents/altelier/app/api/saves/[id]/preview/route.test.ts"/>
+	<!-- tests 6 -->
+	<!-- suites 0 -->
+	<!-- pass 6 -->
+	<!-- fail 0 -->
+	<!-- cancelled 0 -->
+	<!-- skipped 0 -->
+	<!-- todo 0 -->
+	<!-- duration_ms 154.689834 -->
+</testsuites>
+
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testcase name="compiled stdio carries a real API-authorized saved image from Storage into MCP" time="0.173666" classname="test" file="/private/tmp/atelier-reference-fixture.mjs"/>
+	<!-- tests 1 -->
+	<!-- suites 0 -->
+	<!-- pass 1 -->
+	<!-- fail 0 -->
+	<!-- cancelled 0 -->
+	<!-- skipped 0 -->
+	<!-- todo 0 -->
+	<!-- duration_ms 415.501417 -->
+</testsuites>

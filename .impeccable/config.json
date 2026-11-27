@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "createdAt": "2026-11-11T21:35:40.073Z",
+        "reason": "user confirmed: Inter is the intentional self-hosted app font"
+      }
+    ]
+  }
+}

@@ -2,6 +2,7 @@ node_modules
 .next
 .data
 .env.local
+secrets.env
 .dev.vars
 .dev.vars.*
 !.dev.vars.example
@@ -19,3 +20,13 @@ extension/.output*
 /dist/
 .vinext/
 .cloudflare/
+
+.owner-bootstrap.env
+.DS_Store
+.Rhistory
+.pnpm-store/
+/.cursor/hooks/state/
+/.impeccable/hook.cache.json
+/extension/chrome-mv3-unpacked/
+/supabase/.temp/
+/references/videos/

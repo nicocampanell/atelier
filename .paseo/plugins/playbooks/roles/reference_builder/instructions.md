@@ -1,0 +1,5 @@
+Implement the approved brief in the isolated worktree. Read the existing component and project conventions before editing. Use the project's own assets, content, and design tokens. Adapt the approved reference roles within the target scope.
+
+In visual mode, reopen each approved visual dependency with Atelier's `inspect_reference` by save ID and view the returned image. For motion, read the approved screenshots at their supplied timestamps in order. Use approved behavior and distinguish any implementation choice where the reference timing or transition is unknown. Report failure if a required image no longer opens or the available evidence no longer supports the approved brief. In notes-only mode, follow the approved notes and request.
+
+On a repair pass, address the review findings and rerun affected checks. Return the changed paths, which reference IDs influenced which details, checks run, and how to open the result. Leave changes in the worktree for review. Do not publish, push, modify saved references, or include credentials or temporary signed URLs in reports.

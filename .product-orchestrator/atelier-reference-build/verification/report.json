@@ -1,0 +1,26 @@
+{
+  "snapshot": "b048519496349fb0e617b441cd24a5cb499e01db2984f6e7d0ccbd74026c5496",
+  "reviewer": "/root/reference_verifier",
+  "checks": {
+    "R1": {
+      "status": "pass",
+      "evidence": ".product-orchestrator/atelier-reference-build/verification/R1.log",
+      "sha256": "2756c6f80deea47bb433627a000648be7740e2398422d19faa1a6d8bfdfce665"
+    },
+    "R2": {
+      "status": "pass",
+      "evidence": ".product-orchestrator/atelier-reference-build/verification/R2.log",
+      "sha256": "76d04e4ee08f440e529a825ff6a7705385de359480809669a469eb45820d53d8"
+    },
+    "R3": {
+      "status": "pass",
+      "evidence": ".product-orchestrator/atelier-reference-build/verification/R3.log",
+      "sha256": "6085d8b06a3838b04afb4e92462b12d834f20b55da54611699068a1b5141ff99"
+    },
+    "R4": {
+      "status": "pass",
+      "evidence": ".product-orchestrator/atelier-reference-build/verification/R4.log",
+      "sha256": "437afc276718bee06591f18ea76379e3db7aabfb7c6594441b7e06a547534932"
+    }
+  }
+}

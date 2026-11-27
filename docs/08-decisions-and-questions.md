@@ -7,6 +7,7 @@ Use this log for choices that affect product direction, design, engineering, or 
 - The concept should draw on the cited references for effortless saving, multimodal retrieval, connections, and an expressive interface. Explore Surface Field in the UI.
 - Build for a hosted web app with backend processing; do not assume the local desktop architecture of Pond or DigUp transfers unchanged.
 - Open: first audience and specific first-release promise; source integrations and permissions; hosting and inference costs; how proactive connections earn trust. See [reference research](09-reference-research.md).
+- Updated positioning: references from everywhere, together and available when needed. A personal note about why something was saved can remain optional, but is not the central pitch or required capture step.
 
 ## Answers from Nico — 2026-11-10
 

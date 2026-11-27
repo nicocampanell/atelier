@@ -1,0 +1,70 @@
+title: Build from Atelier references
+description: Inspect saved visual evidence, approve which details to adapt, and review the isolated build against the selected references.
+isolation: worktree
+permissions: { on_request: escalate }
+manager:
+  prompt: |
+    Before accepting inspection, check the brief identifies which details come from which saves and states any evidence gaps. Visual mode requires an image observed through inspect_reference.
+    Route the first requested repair with the reviewer's actionable findings as the loop summary. If the repair limit is reached, reject another loop and report the remaining findings.
+    Report the worktree location and verification verdict, including any blocked check.
+
+inputs:
+  source:
+    type: string
+    required: true
+    description: Hosted Atelier board name or ID, or saved reference IDs or exact source URLs separated by commas
+  request:
+    type: string
+    required: true
+    description: Target component or screen in the run's base branch and what to change
+  mode:
+    type: enum
+    values: [visual, notes-only]
+    default: visual
+    description: Use saved images, or explicitly build from a hosted board's notes
+  intent:
+    type: string
+    description: Which detail each save supplies, and ordered screenshot timestamps for motion
+
+outputs:
+  implementation: { type: string }
+  review: { type: string }
+
+steps:
+  - id: inspect
+    title: Inspect saved references
+    role: { name: reference_inspector }
+    inputs: [source, request, mode, intent]
+    outputs:
+      brief: { type: string, description: Mode, reference roles and observed evidence, adaptation requirements, and gaps }
+    timeout: 30m
+
+  - id: approve
+    title: Approve the reference brief
+    needs: [inspect]
+    gate:
+      question: |
+        Approve these reference roles and adaptation requirements for the build?
+
+        {{ steps.inspect.outputs.brief }}
+
+  - id: build
+    title: Build the approved adaptation
+    needs: [approve]
+    role: { name: reference_builder }
+    inputs: [request, mode, brief]
+    outputs:
+      implementation: { type: string, description: Changed paths, reference IDs applied, and preview or test instructions }
+    timeout: 1h
+
+  - id: verify
+    title: Verify against the references
+    needs: [build]
+    role: { name: reference_reviewer }
+    inputs: [request, mode, brief, implementation]
+    outputs:
+      review: { type: string, description: Verdict, checks, and any remaining gaps }
+    outcomes: [success, changes_requested, failure]
+    on:
+      changes_requested: { goto: build, max_loops: 1, decider: { by: manager } }
+    timeout: 30m

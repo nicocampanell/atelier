@@ -1,0 +1,17 @@
+Paseo validate_playbooks returned valid=true, errors=[], inputs source/request/mode/intent and inspect/approve/build/verify. Source is the local workspace fallback. Inspected the per-reference intent, timestamped-frame instructions, new-component target rule, evidence requirements and copy-to-target documentation. Exercised gates and loop in installed plugin engine using fixture reports. A hosted agent run with a real board is unverified.
+
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testcase name="default visual mode and omitted optional intent reach the inspector" time="0.001773" classname="test" file="/private/tmp/opencode/atelier-playbook-engine.test.mjs"/>
+	<testcase name="blocked media fails the run before approval or any build" time="0.000239" classname="test" file="/private/tmp/opencode/atelier-playbook-engine.test.mjs"/>
+	<testcase name="notes-only is explicit and approved brief reaches builder and reviewer" time="0.000708" classname="test" file="/private/tmp/opencode/atelier-playbook-engine.test.mjs"/>
+	<testcase name="one repair carries reviewer feedback and a second finding reaches the limit" time="0.000549" classname="test" file="/private/tmp/opencode/atelier-playbook-engine.test.mjs"/>
+	<!-- tests 4 -->
+	<!-- suites 0 -->
+	<!-- pass 4 -->
+	<!-- fail 0 -->
+	<!-- cancelled 0 -->
+	<!-- skipped 0 -->
+	<!-- todo 0 -->
+	<!-- duration_ms 248.437208 -->
+</testsuites>

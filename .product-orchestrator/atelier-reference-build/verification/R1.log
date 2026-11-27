@@ -1,0 +1,21 @@
+Freshly compiled symlinked stdio entry point plus fixture responses from API and Storage. PNG decode read 1 by 1 pixels. Separate loopback command traversed real API handlers and simulated Supabase services. Hosted user data was not accessed.
+
+PASS stdio initialization and 8 required tools
+PASS existing named-board brief cites fixture save
+PASS s1 image returned byte-exact as MCP image content and associated provenance
+PASS s2 image returned byte-exact as MCP image content and associated provenance
+PASS missing-media status
+PASS missing-source lookup error
+
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testcase name="compiled stdio carries a real API-authorized saved image from Storage into MCP" time="0.173666" classname="test" file="/private/tmp/atelier-reference-fixture.mjs"/>
+	<!-- tests 1 -->
+	<!-- suites 0 -->
+	<!-- pass 1 -->
+	<!-- fail 0 -->
+	<!-- cancelled 0 -->
+	<!-- skipped 0 -->
+	<!-- todo 0 -->
+	<!-- duration_ms 415.501417 -->
+</testsuites>

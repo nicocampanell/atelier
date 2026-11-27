@@ -19,6 +19,11 @@ import zlib from "node:zlib";
 import type { IncomingMessage } from "node:http";
 import type { Readable } from "node:stream";
 
+/** workerd's node:http wraps fetch and does not support a custom `lookup`. */
+function isWorkerd(): boolean {
+  return typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
+}
+
 export const ALLOWED_PORTS = [80, 443, 8080, 8443];
 export const PRIVATE_MESSAGE = "That address points to a private network and can't be saved.";
 
@@ -251,7 +256,83 @@ function friendlyNetworkError(e: unknown): SafeFetchError {
   return new SafeFetchError("network", "Couldn't fetch that address.");
 }
 
-function hop(u: URL, maxBytes: number, deadline: number): Promise<HopResult> {
+const FETCH_HEADERS = {
+  "User-Agent": "AtelierBot/0.1",
+  Accept: "text/html,application/xhtml+xml,text/plain,image/*;q=0.8,*/*;q=0.5",
+  "Accept-Encoding": "gzip, deflate, br",
+};
+
+/** Resolve named hosts and refuse private answers before connecting (Workers can't pin lookup). */
+async function assertPublicResolved(hostname: string): Promise<void> {
+  const host = stripBrackets(hostname);
+  if (net.isIP(host)) {
+    if (isPrivateAddress(host)) throw new SafeFetchError("private_address", PRIVATE_MESSAGE);
+    return;
+  }
+  if (BLOCKED_NAME.test(host)) throw new SafeFetchError("private_address", PRIVATE_MESSAGE);
+  // ponytail: DNS-then-fetch leaves a rebinding window; Workers fetch can't bind to vetted IPs.
+  let addrs: dns.LookupAddress[];
+  try {
+    addrs = await dns.promises.lookup(host, { all: true, verbatim: true });
+  } catch (e) {
+    throw friendlyNetworkError(e);
+  }
+  if (!addrs.length || addrs.some((a) => isPrivateAddress(a.address))) {
+    throw new SafeFetchError("private_address", PRIVATE_MESSAGE);
+  }
+}
+
+async function hopViaFetch(u: URL, maxBytes: number, deadline: number): Promise<HopResult> {
+  const remaining = deadline - Date.now();
+  if (remaining <= 0) throw new SafeFetchError("timeout", "The site took too long to respond.");
+  await assertPublicResolved(u.hostname);
+
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), remaining);
+  try {
+    const res = await fetch(u.toString(), {
+      method: "GET",
+      redirect: "manual",
+      headers: FETCH_HEADERS,
+      signal: ac.signal,
+    });
+    const status = res.status;
+    const contentType = (res.headers.get("content-type") ?? "").toLowerCase();
+    const location = res.headers.get("location");
+    if (status >= 300 && status < 400 && location) {
+      return { status, contentType, location, body: Buffer.alloc(0) };
+    }
+    const cl = Number(res.headers.get("content-length"));
+    if (Number.isFinite(cl) && cl > maxBytes) {
+      throw new SafeFetchError("too_large", "That page is too large to save.");
+    }
+    const reader = res.body?.getReader();
+    if (!reader) return { status, contentType, location: null, body: Buffer.alloc(0) };
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel().catch(() => {});
+        throw new SafeFetchError("too_large", "That page is too large to save.");
+      }
+      chunks.push(value);
+    }
+    return { status, contentType, location: null, body: Buffer.concat(chunks) };
+  } catch (e) {
+    if (e instanceof SafeFetchError) throw e;
+    if ((e as { name?: string } | null)?.name === "AbortError") {
+      throw new SafeFetchError("timeout", "The site took too long to respond.");
+    }
+    throw friendlyNetworkError(e);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function hopViaNode(u: URL, maxBytes: number, deadline: number): Promise<HopResult> {
   return new Promise<HopResult>((resolve, reject) => {
     const remaining = deadline - Date.now();
     if (remaining <= 0) return reject(new SafeFetchError("timeout", "The site took too long to respond."));
@@ -286,11 +367,7 @@ function hop(u: URL, maxBytes: number, deadline: number): Promise<HopResult> {
           agent: false,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           lookup: vettedLookup as any,
-          headers: {
-            "User-Agent": "AtelierBot/0.1",
-            Accept: "text/html,application/xhtml+xml,text/plain,image/*;q=0.8,*/*;q=0.5",
-            "Accept-Encoding": "gzip, deflate, br",
-          },
+          headers: FETCH_HEADERS,
         },
         (response) => {
           res = response;
@@ -338,6 +415,10 @@ function hop(u: URL, maxBytes: number, deadline: number): Promise<HopResult> {
     req.on("error", (e) => finish(e));
     req.end();
   });
+}
+
+function hop(u: URL, maxBytes: number, deadline: number): Promise<HopResult> {
+  return isWorkerd() ? hopViaFetch(u, maxBytes, deadline) : hopViaNode(u, maxBytes, deadline);
 }
 
 // ---------- public API ----------

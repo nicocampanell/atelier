@@ -1,0 +1,21 @@
+{
+  "criteria_revision": "r1",
+  "required": ["R1", "R2", "R3", "R4"],
+  "inputs": [
+    "mcp/.gitignore",
+    "mcp/README.md",
+    "mcp/package.json",
+    "mcp/pnpm-lock.yaml",
+    "mcp/pnpm-workspace.yaml",
+    "mcp/src",
+    "mcp/tsconfig.json",
+    "app/api/saves",
+    "app/api/assets",
+    "lib/saves.ts",
+    "lib/fetch-safe.ts",
+    "lib/assets.ts",
+    "lib/auth.ts",
+    "tsconfig.json",
+    ".paseo/plugins/playbooks"
+  ]
+}

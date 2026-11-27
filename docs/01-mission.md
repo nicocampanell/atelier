@@ -4,9 +4,11 @@ Status: Working direction recorded; audience and outcomes remain unvalidated.
 
 ## Working direction — November 2026
 
-Help people collect inspiration from across the web and their own files, rediscover it by meaning, and connect references while making something. The motivating problem is Nico's experience of ideas scattered across social platforms, photos, articles, and videos. The initial audience of designers and other visual researchers is a hypothesis to test, not a validated market.
+Help people bring their references from across the web and their own files into one place, so they can find and use them whenever they need them. The motivating problem is Nico's experience of ideas scattered across social platforms, photos, articles, and videos. The initial audience of designers and other visual researchers is a hypothesis to test, not a validated market.
 
 The outcome is more than a store of links: a person can find a remembered reference, understand why items relate, and bring relevant material into a creative workflow. Todd Lindeman's [interview](https://notes.wisprflow.ai/shared/zUYRLWyv9_XygXH_awzqmz59q1iPdEWCfiIIadd7fxU) challenged the concept to make that outcome explicit and raised privacy concerns. Personal analytics and self-reflection were possible directions discussed, not an agreed product scope.
+
+Atelier should make the user's chosen references accessible together while preserving their creative direction. A note can be useful, but explaining why something was saved is not the product's central promise. See [positioning](03-positioning-and-business.md) for the original pitch context and current direction.
 
 ## Start here
 

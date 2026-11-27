@@ -4,7 +4,7 @@ Research snapshot: 2026-11-09. This document records observed behavior, source-c
 
 ## The thesis
 
-Inspiration is fragmented across social saves, websites, screenshots, documents, photos, and video. The user wants to collect it with minimal friction, retrieve it by what they remember, and work with it: compare it, connect it, explain its significance, and use it as context for making something. A personal visual research space is a working hypothesis for the first audience and experience. It is grounded in Nico's account in the [Moody's interview](https://notes.wisprflow.ai/shared/zUYRLWyv9_XygXH_awzqmz59q1iPdEWCfiIIadd7fxU); Todd's question, “what is the output?”, is a useful test for every feature.
+Inspiration is fragmented across social saves, websites, screenshots, documents, photos, and video. The current direction is to bring a person's references together in one place so they can find and use them whenever needed. The user can then compare or connect them while making something. A personal visual research space is a working hypothesis for the first audience and experience. It is grounded in Nico's account in the [Moody's interview](https://notes.wisprflow.ai/shared/zUYRLWyv9_XygXH_awzqmz59q1iPdEWCfiIIadd7fxU); Todd's question, “what is the output?”, is a useful test for every feature.
 
 Three outcomes make the concept concrete:
 

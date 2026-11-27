@@ -25,16 +25,17 @@ export async function signIn(
     return { ok: false, message: "Enter a valid server URL, e.g. http://localhost:3000." };
   }
   if (!trimmedEmail || !password) return { ok: false, message: "Enter email and password." };
-  if (origin !== new URL(DEFAULT_SERVER_URL).origin) {
-    const granted = await browser.permissions.request({ origins: [`${origin}/*`] }).catch(() => false);
-    if (!granted) return { ok: false, message: `Atelier needs permission to talk to ${new URL(origin).host}.` };
-  }
-  // Bake covers WXT_SUPABASE_URL at build; request is a no-op when already granted.
+  // Always request — baked DEFAULT can match origin while host_permissions still omit it
+  // (wxt.config reads process.env before Vite loads .env.local).
+  const granted = await browser.permissions.request({ origins: [`${origin}/*`] }).catch(() => false);
+  if (!granted) return { ok: false, message: `Atelier needs permission to talk to ${new URL(origin).host}.` };
   try {
     const supabaseOrigin = new URL(import.meta.env.WXT_SUPABASE_URL as string).origin;
-    if (supabaseOrigin !== new URL(DEFAULT_SERVER_URL).origin) {
-      const granted = await browser.permissions.request({ origins: [`${supabaseOrigin}/*`] }).catch(() => false);
-      if (!granted) return { ok: false, message: `Atelier needs permission to talk to ${new URL(supabaseOrigin).host}.` };
+    const supabaseGranted = await browser.permissions
+      .request({ origins: [`${supabaseOrigin}/*`] })
+      .catch(() => false);
+    if (!supabaseGranted) {
+      return { ok: false, message: `Atelier needs permission to talk to ${new URL(supabaseOrigin).host}.` };
     }
   } catch {
     return { ok: false, message: "Invalid WXT_SUPABASE_URL — rebuild with a valid Supabase project URL." };

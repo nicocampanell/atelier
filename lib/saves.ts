@@ -194,7 +194,7 @@ function decodeCursor(c: string): { iso: string; id: string } | null {
 /** Newest first: created_at desc, id desc. Keyset pagination. */
 export async function listSaves(
   userId: string,
-  opts: { limit?: number; cursor?: string | null } = {},
+  opts: { limit?: number; cursor?: string | null; sourceUrl?: string } = {},
 ): Promise<{ saves: Save[]; next: string | null }> {
   const limit = Math.min(Math.max(opts.limit ?? 50, 1), 100);
   let q = db()
@@ -205,6 +205,8 @@ export async function listSaves(
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
     .limit(limit + 1);
+
+  if (opts.sourceUrl !== undefined) q = q.eq("source_url", opts.sourceUrl);
 
   if (opts.cursor) {
     const c = decodeCursor(opts.cursor);

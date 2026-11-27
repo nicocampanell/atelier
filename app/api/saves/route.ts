@@ -19,6 +19,14 @@ export async function GET(req: Request) {
     const userId = await requireUser(req);
     if (typeof userId !== "string") return userId;
     const sp = new URL(req.url).searchParams;
+    const sourceUrl = sp.get("sourceUrl");
+    if (sourceUrl !== null) {
+      if (sourceUrl.length > 2048 || !URL.canParse(sourceUrl) || !/^https?:\/\//i.test(sourceUrl)) {
+        throw new ApiError(400, "bad_request", "sourceUrl must be an absolute HTTP or HTTPS URL up to 2048 characters.");
+      }
+      const { saves } = await listSaves(userId, { sourceUrl, limit: 2 });
+      return ok({ saves, next: null, exactSource: true });
+    }
     let limit = 50;
     const rawLimit = sp.get("limit");
     if (rawLimit !== null && rawLimit !== "") {

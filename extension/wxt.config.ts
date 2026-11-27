@@ -1,4 +1,17 @@
+import { readFileSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { defineConfig } from "wxt";
+
+// Vite injects WXT_* into the bundle; manifest host_permissions need process.env here.
+for (const name of [".env.local", ".env"]) {
+  const path = resolve(import.meta.dirname, name);
+  if (!existsSync(path)) continue;
+  for (const line of readFileSync(path, "utf8").split("\n")) {
+    const m = /^(WXT_[A-Z0-9_]+)=(.*)$/.exec(line.trim());
+    if (!m || process.env[m[1]]) continue;
+    process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+  }
+}
 
 // Chrome MV3 build of the Atelier capture extension.
 // Permissions are owned by the core worker; keep them minimal and never add

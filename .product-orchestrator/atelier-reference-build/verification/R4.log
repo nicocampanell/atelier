@@ -1,0 +1,63 @@
+Fresh standalone package copy nested under a parent pnpm workspace. Ran documented frozen install, build, typecheck and tests. Launched compiled binary through a symlink. Reviewed current config, auth, linked-preview route release requirement, and cross-project playbook installation instructions. Earlier installation and symlink regressions passed re-verification. Repository-wide TypeScript still has three Vite environment diagnostics and two worker request diagnostics.
+
+✓ Lockfile passes supply-chain policies (verified 11h ago)
+Lockfile is up to date, resolution step is skipped
+Packages are cloned from the content-addressable store to the virtual store.
+  Content-addressable store is at: /Users/nicocampanell/Library/pnpm/store/v11
+  Virtual store is at:             node_modules/.pnpm
+Packages: +108
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 108, reused 108, downloaded 0, added 108, done
+
+dependencies:
++ @modelcontextprotocol/sdk 1.32.2
++ @supabase/supabase-js 2.119.2
++ zod 3.25.76
+
+devDependencies:
++ @types/node 22.20.5
++ tsx 4.23.15
++ typescript 5.9.3
+
+Done in 342ms using pnpm v12.5.1
+
+$ tsc -p tsconfig.json
+
+$ tsc -p tsconfig.json --noEmit
+
+$ node --import tsx --test src/*.test.ts
+▶ buildBoardBrief
+  ✔ includes notes, tags, and direction palette (24.813ms)
+  ✔ direction mode drops note bodies but keeps exemplars (0.298458ms)
+✔ buildBoardBrief (25.970667ms)
+▶ combineBriefs
+  ✔ prefixes notes with board name and merges tags (1.068958ms)
+✔ combineBriefs (1.400208ms)
+▶ buildDirection
+  ✔ ranks tag frequency (0.149125ms)
+✔ buildDirection (0.284583ms)
+✔ exact source URL resolution reads subsequent pages and rejects duplicate or missing references (10.083625ms)
+✔ exact source URL lookup stops if pagination repeats (0.296542ms)
+✔ uses the owner's exact-source lookup when the API confirms support (0.233375ms)
+✔ reads private storage without forwarding bearer to its signed redirect (20.854042ms)
+✔ rejects untrusted storage redirects without fetching them (0.544042ms)
+✔ uses the authorized preview endpoint for external images without requesting the external URL (0.769125ms)
+✔ reports missing previews, API errors, oversized content and mismatched bytes (1.160042ms)
+✔ MCP advertises existing tools and returns actual image content for a saved reference (7.796ms)
+✔ MCP reads the saved object and image through the authenticated API (13.757209ms)
+ℹ tests 13
+ℹ suites 3
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 679.681708
+
+PASS stdio initialization and 8 required tools
+PASS existing named-board brief cites fixture save
+PASS s1 image returned byte-exact as MCP image content and associated provenance
+PASS s2 image returned byte-exact as MCP image content and associated provenance
+PASS missing-media status
+PASS missing-source lookup error
+Updated README requires Node 22 or newer. Installed Supabase engine declaration {"node": ">=22.0.0"}. Re-ran typecheck, 13 MCP tests and the symlinked stdio check successfully with Node v26.7.0 after the README-only edit.
